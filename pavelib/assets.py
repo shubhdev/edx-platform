@@ -16,12 +16,16 @@ from .utils.cmd import cmd, django_cmd
 
 COFFEE_DIRS = ['lms', 'cms', 'common']
 SASS_LOAD_PATHS = ['./common/static/sass']
+<<<<<<< HEAD
 SASS_UPDATE_DIRS = ['*/static']
+=======
+SASS_UPDATE_DIRS = ['lms/static/sass', 'cms/static/sass', 'common/static/sass']
+>>>>>>> Start of a comprehensive theming system
 SASS_CACHE_PATH = '/tmp/sass-cache'
 
 
 THEME_COFFEE_PATHS = []
-THEME_SASS_PATHS = []
+THEME_SASS_PATHS = {}
 
 edxapp_env = Env()
 if edxapp_env.feature_flags.get('USE_CUSTOM_THEME', False):
@@ -30,6 +34,16 @@ if edxapp_env.feature_flags.get('USE_CUSTOM_THEME', False):
     theme_root = parent_dir / "themes" / theme_name
     THEME_COFFEE_PATHS = [theme_root]
     THEME_SASS_PATHS = [theme_root / "static" / "sass"]
+if edxapp_env.env_tokens.get("THEME_DIR", False):
+    theme_dir = path(edxapp_env.env_tokens["THEME_DIR"])
+    lms_sass = theme_dir / "lms" / "static" / "sass"
+    lms_css = theme_dir / "lms" / "static" / "css"
+    if lms_sass.isdir():
+        THEME_SASS_PATHS[lms_sass] = lms_css if lms_css.isdir() else None
+    studio_sass = theme_dir / "studio" / "static" / "sass"
+    studio_css = theme_dir / "studio" / "static" / "css"
+    if studio_sass.isdir():
+        THEME_SASS_PATHS[studio_sass] = studio_css if studio_css.isdir() else None
 
 
 class CoffeeScriptWatcher(PatternMatchingEventHandler):
@@ -69,7 +83,7 @@ class SassWatcher(PatternMatchingEventHandler):
         """
         register files with observer
         """
-        for dirname in SASS_LOAD_PATHS + SASS_UPDATE_DIRS + THEME_SASS_PATHS:
+        for dirname in SASS_LOAD_PATHS + SASS_UPDATE_DIRS + THEME_SASS_PATHS.keys():
             paths = []
             if '*' in dirname:
                 paths.extend(glob.glob(dirname))
@@ -134,23 +148,19 @@ def compile_sass(debug=False):
     """
     Compile Sass to CSS.
     """
+    sass_pairs = []
+    for sass_dir, css_dir in THEME_SASS_PATHS.items():
+        if css_dir:
+            sass_pairs.append("{sass}:{css}".format(sass=sass_dir, css=css_dir))
+        else:
+            sass_pairs.append(sass_dir)
     sh(cmd(
         'sass', '' if debug else '--style compressed',
         "--sourcemap" if debug else '',
         "--cache-location {cache}".format(cache=SASS_CACHE_PATH),
-        "--load-path", " ".join(SASS_LOAD_PATHS + THEME_SASS_PATHS),
-        "--update", "-E", "utf-8", " ".join(SASS_UPDATE_DIRS + THEME_SASS_PATHS),
+        "--load-path", " ".join(SASS_LOAD_PATHS + THEME_SASS_PATHS.keys()),
+        "--update", "-E", "utf-8", " ".join(SASS_UPDATE_DIRS + sass_pairs),
     ))
-
-
-def compile_templated_sass(systems, settings):
-    """
-    Render Mako templates for Sass files.
-    `systems` is a list of systems (e.g. 'lms' or 'studio' or both)
-    `settings` is the Django settings module to use.
-    """
-    for sys in systems:
-        sh(django_cmd(sys, settings, 'preprocess_assets'))
 
 
 def process_xmodule_assets():
@@ -228,7 +238,6 @@ def update_assets(args):
     )
     args = parser.parse_args(args)
 
-    compile_templated_sass(args.system, args.settings)
     process_xmodule_assets()
     compile_coffeescript()
     compile_sass(args.debug)
