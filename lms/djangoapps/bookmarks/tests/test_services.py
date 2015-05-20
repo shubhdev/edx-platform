@@ -1,7 +1,6 @@
 """
 Tests for bookmark services.
 """
-
 from opaque_keys.edx.keys import UsageKey
 
 from .factories import BookmarkFactory
@@ -39,12 +38,23 @@ class BookmarksAPITests(ModuleStoreTestCase):
         self.vertical_1 = ItemFactory.create(
             parent_location=self.sequential.location, category='vertical', display_name='Subsection 1.1'
         )
+        self.sequential_2 = ItemFactory.create(
+            parent_location=self.chapter.location, category='sequential', display_name='Lesson 2'
+        )
+
         self.bookmark = BookmarkFactory.create(
             user=self.user,
             course_key=self.course_id,
             usage_key=self.vertical.location,
-            display_name=self.vertical.display_name
+            xblock_cache__display_name=self.vertical.display_name
         )
+        self.bookmark2 = BookmarkFactory.create(
+            user=self.user,
+            course_key=self.course_id,
+            usage_key=self.sequential_2.location,
+            xblock_cache__display_name=self.sequential_2.display_name
+        )
+
         self.bookmark_service = BookmarksService(user=self.user)
 
     def assert_bookmark_response(self, response_data, bookmark):
@@ -67,15 +77,29 @@ class BookmarksAPITests(ModuleStoreTestCase):
 
         bookmarks_data = self.bookmark_service.bookmarks(course_key=self.course.id)
 
-        self.assertEqual(len(bookmarks_data), 1)
-        self.assert_bookmark_response(bookmarks_data[0], self.bookmark)
+        self.assertEqual(len(bookmarks_data), 2)
+        self.assert_bookmark_response(bookmarks_data[0], self.bookmark2)
+        self.assert_bookmark_response(bookmarks_data[1], self.bookmark)
 
     def test_is_bookmarked(self):
         """
         Verifies is_bookmarked returns Bool as expected.
         """
-        self.assertTrue(self.bookmark_service.is_bookmarked(usage_key=self.vertical.location))
-        self.assertFalse(self.bookmark_service.is_bookmarked(usage_key=self.vertical_1.location))
+        with self.assertNumQueries(1):
+            self.assertTrue(self.bookmark_service.is_bookmarked(usage_key=self.vertical.location))
+            self.assertFalse(self.bookmark_service.is_bookmarked(usage_key=self.vertical_1.location))
+            self.assertTrue(self.bookmark_service.is_bookmarked(usage_key=self.sequential_2.location))
+
+        self.bookmark_service.set_bookmarked(usage_key=self.chapter.location)
+        with self.assertNumQueries(0):
+            self.assertTrue(self.bookmark_service.is_bookmarked(usage_key=self.chapter.location))
+            self.assertFalse(self.bookmark_service.is_bookmarked(usage_key=self.vertical_1.location))
+
+        # Removing a bookmark should result in the cache being updated on the next request
+        self.bookmark_service.unset_bookmarked(usage_key=self.chapter.location)
+        with self.assertNumQueries(0):
+            self.assertFalse(self.bookmark_service.is_bookmarked(usage_key=self.chapter.location))
+            self.assertFalse(self.bookmark_service.is_bookmarked(usage_key=self.vertical_1.location))
 
         # Get bookmark that does not exist.
         bookmark_service = BookmarksService(self.other_user)

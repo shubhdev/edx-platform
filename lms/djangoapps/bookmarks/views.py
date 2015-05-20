@@ -164,7 +164,10 @@ class BookmarksListView(ListCreateAPIView, BookmarksViewMixin):
         else:
             course_key = None
 
-        return api.get_bookmarks(user=self.request.user, course_key=course_key, serialized=False)
+        return api.get_bookmarks(
+            user=self.request.user, course_key=course_key,
+            fields=self.fields_to_return(self.request.QUERY_PARAMS), serialized=False
+        )
 
     def post(self, request):
         """

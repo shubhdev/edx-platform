@@ -15,7 +15,8 @@ class BookmarkSerializer(serializers.ModelSerializer):
     course_id = serializers.Field(source='course_key')
     usage_id = serializers.Field(source='usage_key')
     block_type = serializers.Field(source='usage_key.block_type')
-    path = serializers.Field(source='path')
+    display_name = serializers.Field(source='display_name')
+    path = serializers.SerializerMethodField('path_data')
 
     def __init__(self, *args, **kwargs):
         # Don't pass the 'fields' arg up to the superclass
@@ -50,3 +51,9 @@ class BookmarkSerializer(serializers.ModelSerializer):
         Return the REST resource id: {username,usage_id}.
         """
         return "{0},{1}".format(bookmark.user.username, bookmark.usage_key)
+
+    def path_data(self, bookmark):
+        """
+        Serialize and return the path data of the bookmark.
+        """
+        return [path_item._asdict() for path_item in bookmark.path]
