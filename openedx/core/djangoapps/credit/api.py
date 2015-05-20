@@ -1,4 +1,6 @@
-""" Contains the APIs for course credit requirements """
+"""
+Contains the APIs for course credit requirements.
+"""
 
 from .exceptions import InvalidCreditRequirements
 from .models import CreditCourse, CreditRequirement
@@ -70,45 +72,51 @@ def get_credit_requirements(course_key, namespace=None):
         namespace(str): Namespace of requirements
 
     Example:
-        >>> get_credit_requirements("course-v1-edX-DemoX-1T2015")
-                {
-                    requirements =
-                    [
-                        {
-                            "namespace": "reverification",
-                            "name": "i4x://edX/DemoX/edx-reverification-block/assessment_uuid",
-                            "display_name": "Assessment 1",
-                            "criteria": {},
-                        },
-                        {
-                            "namespace": "proctored_exam",
-                            "name": "i4x://edX/DemoX/proctoring-block/final_uuid",
-                            "display_name": "Final Exam",
-                            "criteria": {},
-                        },
-                        {
-                            "namespace": "grade",
-                            "name": "grade",
-                            "display_name": "Grade",
-                            "criteria": {"min_grade": 0.8},
-                        },
-                    ]
-                }
+        >>> get_credit_requirements
+            {
+                "reverification": [
+                    {
+                        "name": "i4x://edX/DemoX/edx-reverification-block/assessment_uuid",
+                        "display_name": "Assessment 1",
+                        "criteria": {},
+                    },
+                ]
+                "proctored_exam": [
+                    {
+                        "name": "i4x://edX/DemoX/proctoring-block/final_uuid",
+                        "display_name": "Final Exam",
+                        "criteria": {},
+                    },
+                ]
+                "grade": [
+                    {
+                        "name": "grade",
+                        "display_name": "Grade",
+                        "criteria": {"min_grade": 0.8},
+                    },
+                ]
+            }
 
     Returns:
         Dict of requirements in the given namespace
+
     """
 
     requirements = CreditRequirement.get_course_requirements(course_key, namespace)
-    return [
-        {
-            "namespace": requirement.namespace,
+    # pair requirements with same 'namespace' value together
+    paired_requirements = {}
+    for requirement in requirements:
+        requirement_data = {
             "name": requirement.name,
             "display_name": requirement.display_name,
-            "criteria": requirement.criteria
+            "criteria": requirement.criteria,
         }
-        for requirement in requirements
-    ]
+        if requirement.namespace in paired_requirements:
+            paired_requirements[requirement.namespace].append(requirement_data)
+        else:
+            paired_requirements.update({requirement.namespace: [requirement_data]})
+
+    return paired_requirements
 
 
 def _get_requirements_to_disable(old_requirements, new_requirements):

@@ -99,9 +99,13 @@ class ApiTestCases(ModuleStoreTestCase):
         set_credit_requirements(self.course_key, requirements)
         self.assertEqual(len(get_credit_requirements(self.course_key)), 1)
 
-        # now verify that the saved requirement has values of last requirement
-        # from all same requirements
-        self.assertEqual(get_credit_requirements(self.course_key)[0], requirements[1])
+        # now verify that the saved 'min_grade' value of requirement is same as
+        # of last grade requirement 'min_grade' value from all grade
+        # requirements sent to 'set_credit_requirements'
+        self.assertEqual(
+            get_credit_requirements(self.course_key)['grade'][0]['criteria']['min_grade'],
+            requirements[1]['criteria']['min_grade']
+        )
 
     def test_disable_credit_requirements(self):
         self.add_credit_course()
