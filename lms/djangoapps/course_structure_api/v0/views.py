@@ -336,6 +336,11 @@ class CourseBlocksAndNavigation(ListAPIView):
 
           Example: graded=True or graded=true
 
+        * responsive_ui: (boolean) Indicates whether to return whether the block has responsive UI support.
+          Default is True.
+
+          Example: responsive_ui=True or responsive_ui=true
+
         * children: (boolean) Indicates whether or not to return children information about the blocks.
           Default is True.
 
@@ -370,6 +375,9 @@ class CourseBlocksAndNavigation(ListAPIView):
           * format: (string) The assignment type of the block.
             Possible values can be "Homework", "Lab", "Midterm Exam", and "Final Exam".
             Returned only if the "graded" input parameter is True.
+
+          * responsive_ui: (boolean) Whether or not the block's rendering obtained via block_url is responsive.
+            Returned only if the "responsive_ui" input parameter is True.
 
           * children: (list) If the block has child blocks, a list of IDs of the child blocks.
             Returned only if the "children" input parameter is True.
@@ -426,6 +434,7 @@ class CourseBlocksAndNavigation(ListAPIView):
         block_json_requested = json_field_requested('block_json', dict, "{}")
         block_count_requested = json_field_requested('block_count', list, "[]")
         graded_requested = bool_field_requested('graded')
+        responsive_ui_requested = bool_field_requested('responsive_ui')
         children_requested = bool_field_requested('children')
         navigation_depth_requested = int(request.GET.get('navigation_depth', '3'))
 
@@ -533,6 +542,14 @@ class CourseBlocksAndNavigation(ListAPIView):
                     )
                 )
                 block_value["format"] = getattr(block, 'format', None)
+
+            # responsive UI
+            # If responsive UI information is requested, include whether this block is tagged with having
+            # responsive UI support.
+            if responsive_ui_requested:
+                block_value["responsive_ui"] = (
+                    block.has_responsive_ui if hasattr(block, 'has_responsive_ui') else False
+                )
 
             # block count
             # For all the block types that are requested to be counted, include the count of
