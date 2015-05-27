@@ -153,6 +153,26 @@ class CreditRequirement(TimeStampedModel):
         """
         cls.objects.filter(id__in=requirement_ids).update(active=False)
 
+    @classmethod
+    def get_course_requirement(cls, course_key, namespace, name):
+        """Get credit requirement of a given course.
+
+        Args:
+            course_key(CourseKey): The identifier for a course
+            namespace(str): Namespace of credit course requirements
+            name(str): Name of credit course requirement
+
+        Returns:
+            CreditRequirement object if exists
+
+        """
+        try:
+            return cls.objects.get(
+                course__course_key=course_key, active=True, namespace=namespace, name=name
+            )
+        except cls.DoesNotExist:
+            return None
+
 
 class CreditRequirementStatus(TimeStampedModel):
     """This model represents the status of each requirement.
@@ -184,6 +204,27 @@ class CreditRequirementStatus(TimeStampedModel):
     # final grade when the user completes the course.  This allows us to display
     # the grade to users later and to send the information to credit providers.
     reason = JSONField(default={})
+
+    @classmethod
+    def add_or_update_requirement_status(cls, user_name, requirement, status="satisfied", reason=None):
+        """Add credit requirement status for given username.
+
+        Args:
+            user_name(str): Username of the user
+            requirement(CreditRequirement): 'CreditRequirement' object
+            status(str): Status of the requirement
+            reason(dict): Reason of the status
+        """
+        requirement_status, created = cls.objects.get_or_create(
+            username=user_name,
+            requirement=requirement,
+            defaults={"reason": reason, "status": status}
+        )
+        if not created:
+            requirement_status.status = status
+            requirement_status.reason = reason if reason else {}
+            requirement_status.save()
+        return requirement_status
 
 
 class CreditEligibility(TimeStampedModel):
