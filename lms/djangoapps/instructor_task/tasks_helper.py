@@ -19,6 +19,7 @@ from django.core.files.storage import DefaultStorage
 from django.db import transaction, reset_queries
 import dogstats_wrapper as dog_stats_api
 from pytz import UTC
+from StringIO import StringIO
 from instructor.paidcourse_enrollment_report import PaidCourseEnrollmentReportProvider
 
 from track.views import task_track
@@ -559,6 +560,22 @@ def upload_csv_to_report_store(rows, csv_name, course_id, timestamp, config_name
     )
     tracker.emit(REPORT_REQUESTED_EVENT_NAME, {"report_type": csv_name, })
 
+def upload_exec_summary_to_store(data_dict, report_name, course_id, generated_at, config_name='GRADES_DOWNLOAD'):
+    report_store = ReportStore.from_config(config_name)
+
+    output_buffer = StringIO()
+    # Use the data dict and html template to generate the output buffer
+
+    report_store.store(
+        course_id,
+        u"{course_prefix}_{report_name}_{timestamp_str}.csv".format(
+            course_prefix=course_filename_prefix_generator(course_id),
+            report_name=report_name,
+            timestamp_str=generated_at.strftime("%Y-%m-%d-%H%M")
+        ),
+        output_buffer
+    )
+    tracker.emit(REPORT_REQUESTED_EVENT_NAME, {"report_type": report_name, })
 
 def upload_grades_csv(_xmodule_instance_args, _entry_id, course_id, _task_input, action_name):  # pylint: disable=too-many-statements
     """
@@ -998,7 +1015,7 @@ def upload_exec_summary_report(_xmodule_instance_args, _entry_id, course_id, _ta
     `ReportStore`.
     """
     start_time = time()
-    start_date = datetime.now(UTC)
+    report_generation_date = datetime.now(UTC)
     status_interval = 100
     students_in_course = CourseEnrollment.objects.enrolled_and_dropped_out_users(course_id)
     task_progress = TaskProgress(action_name, students_in_course.count(), start_time)
@@ -1103,8 +1120,9 @@ def upload_exec_summary_report(_xmodule_instance_args, _entry_id, course_id, _ta
     task_progress.update_task_state(extra_meta=current_step)
     TASK_LOG.info(u'%s, Task type: %s, Current step: %s', task_info_string, action_name, current_step)
 
+    data_dict = {}
     # Perform the actual upload
-    upload_csv_to_report_store(rows, 'enrollment_report', course_id, start_date, config_name='FINANCIAL_REPORTS')
+    upload_exec_summary_to_store(data_dict, 'executive_report', course_id, report_generation_date, config_name='FINANCIAL_REPORTS')
 
     # One last update before we close out...
     TASK_LOG.info(u'%s, Task type: %s, Finalizing detailed enrollment task', task_info_string, action_name)
