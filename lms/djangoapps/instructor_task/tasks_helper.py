@@ -20,6 +20,7 @@ from django.db import transaction, reset_queries
 import dogstats_wrapper as dog_stats_api
 from pytz import UTC
 from StringIO import StringIO
+from edxmako.shortcuts import render_to_string
 from instructor.paidcourse_enrollment_report import PaidCourseEnrollmentReportProvider
 
 from track.views import task_track
@@ -560,154 +561,15 @@ def upload_csv_to_report_store(rows, csv_name, course_id, timestamp, config_name
     )
     tracker.emit(REPORT_REQUESTED_EVENT_NAME, {"report_type": csv_name, })
 
-def generate_exec_summary(data_dict):
-
-    html_template = """
-    <!DOCTYPE HTML>
-    <html>
-    <head>
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>Edx Executive Summary</title>
-    <style type="text/css">
-    body {
-        font-family: Arial, Helvetica, sans-serif;
-        font-size:14px;
-        line-height:22px;
-        margin: 10px;
-    }
-    .box-bg {
-        background:#f1f1f1;
-        padding:10px;
-    }
-    th {
-        padding:5px;
-        background:#ccc;
-    }
-    h2 {
-        margin-top:0
-    }
-    </style>
-    </head>
-
-    <body>
-
-    <table width="650" border="0" cellspacing="5" cellpadding="5">
-        <tr>
-            <td align="left" valign="top"><img src="https://d37djvu3ytnwxt.cloudfront.net/static/mit-prof-ed/images/MITPE-Digital-Programs-Logo.png" alt="logo" /></td>
-        </tr>
-        <tr>
-            <td align="left" valign="top" class="box-bg"><h2>Executive Summary</h2>
-                <table width="100%">
-                    <tr>
-                        <td width="300">Total Enrollments:</td>
-                        <td align="right">1560</td>
-                    </tr>
-                    <tr>
-                        <td>Gross Revenue Collected to date:</td>
-                        <td align="right">$1,560,000</td>
-                    </tr>
-                    <tr>
-                        <td>Gross Pending Revenue:</td>
-                        <td align="right">$62,000</td>
-                    </tr>
-                    <tr>
-                        <td>Total enrollments refunded:</td>
-                        <td align="right">56</td>
-                    </tr>
-                    <tr>
-                        <td>Total $ refunded:</td>
-                        <td align="right">$5,600</td>
-                    </tr>
-                    <tr>
-                        <td>Average price paid:</td>
-                        <td align="right">$75</td>
-                    </tr>
-                </table></td>
-        </tr>
-        <tr>
-            <td align="left" valign="top" class="box-bg"><h3>Top Discount Codes used:</h3>
-                <table width="500">
-                    <tr>
-                        <td>Total seats bough using discount codes:</td>
-                        <td>160</td>
-                    </tr>
-                </table>
-                <table width="100%">
-
-                        <th>Rank</th>
-                        <th>Discount Code</th>
-                        <th>Discount %</th>
-                        <th>Times used</th>
-                    <tr>
-                        <td align="center">1</td>
-                        <td align="center">PEACOCK</td>
-                        <td align="center">50</td>
-                        <td align="center">65</td>
-                    <tr>
-                        <td align="center">2</td>
-                        <td align="center">DRIVE</td>
-                        <td align="center">42</td>
-                        <td align="center">55</td>
-                    <tr>
-                        <td align="center">3</td>
-                        <td align="center">STUDYFREE</td>
-                        <td align="center">23</td>
-                        <td align="center">25</td>
-                    <tr>
-                        <td align="center">4</td>
-                        <td align="center">DISCOUNT10P</td>
-                        <td align="center">10</td>
-                        <td align="center">15</td>
-                    <tr>
-                        <td align="center">5</td>
-                        <td align="center">DISCOUNT20P</td>
-                        <td align="center">20</td>
-                        <td align="center">5</td>
-                    </tr>
-                </table></td>
-        </tr>
-        <tr>
-            <td align="left" valign="top" class="box-bg"><h3>Bulk vs Single Self Purchases</h3>
-                <table width="100%">
-                    <tr>
-                        <td>Total seats bought as single self purchases:</td>
-                        <td align="right">2500</td>
-                    </tr>
-                    <tr>
-                        <td>Total seats bought as bulk purchases:</td>
-                        <td align="right">250</td>
-                    </tr>
-                    <tr>
-                        <td>Total seats bought as bulk purchases (registration codes) but still unused (revenue at risk):</td>
-                        <td align="right">35</td>
-                    </tr>
-                    <tr>
-                        <td>Percentage of total seats bought single self purchases:</td>
-                        <td align="right">35%</td>
-                    </tr>
-                    <tr>
-                        <td>Percentage of total seats bought bulk purchases:</td>
-                        <td align="right">65%</td>
-                    </tr>
-                </table></td>
-        </tr>
-    </table>
-    </body>
-    </html>
-    """
-    generated_html = html_template.format(data_dict)
-    return StringIO(html_generated)
-
-
 def upload_exec_summary_to_store(data_dict, report_name, course_id, generated_at, config_name='GRADES_DOWNLOAD'):
     report_store = ReportStore.from_config(config_name)
 
-    output_buffer = generate_exec_summary(data_dict)
     # Use the data dict and html template to generate the output buffer
+    output_buffer = StringIO(render_to_string("instructor/instructor_dashboard_2/executive_summary.html", data_dict))
 
     report_store.store(
         course_id,
-        u"{course_prefix}_{report_name}_{timestamp_str}.csv".format(
+        u"{course_prefix}_{report_name}_{timestamp_str}.html".format(
             course_prefix=course_filename_prefix_generator(course_id),
             report_name=report_name,
             timestamp_str=generated_at.strftime("%Y-%m-%d-%H%M")
