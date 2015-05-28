@@ -65,7 +65,7 @@ h2 {
 			<table width="500">
 				<tr>
 					<td>${_("Total seats bough using discount codes:")}</td>
-					<td>${total_seats_using_discount_codes}</td>
+					<td>${total_seats_using_discount_codes['coupon__count']}</td>
 				</tr>
 			</table>
 			<table width="100%">
@@ -77,9 +77,9 @@ h2 {
         %for i, discount_code_data in enumerate(discount_codes_data):
 				<tr>
 					<td align="center">${i+1}</td>
-					<td align="center">${discount_code_data[0]}</td>
-					<td align="center">${discount_code_data[1]}</td>
-					<td align="center">${discount_code_data[2]}</td>
+					<td align="center">${discount_code_data['coupon__code']}</td>
+					<td align="center">${discount_code_data['coupon__percentage_discount']}</td>
+					<td align="center">${discount_code_data['coupon__used_count']}</td>
 				</tr>
         %endfor
 			</table></td>

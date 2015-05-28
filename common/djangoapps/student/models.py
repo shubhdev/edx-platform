@@ -817,6 +817,13 @@ class CourseEnrollmentManager(models.Manager):
             courseenrollment__course_id=course_id
         )
 
+    def get_true_enrollment_count_in_a_course(self, course_id):
+        """
+        Returns the true enrollments course.
+        Filter out the staff, and other admin enrollments.
+        """
+        pass
+
 
 class CourseEnrollment(models.Model):
     """

@@ -6,6 +6,7 @@ running state of a course.
 import json
 from collections import OrderedDict
 from datetime import datetime
+from django.conf import settings
 from eventtracking import tracker
 from itertools import chain
 from time import time
@@ -22,6 +23,10 @@ from pytz import UTC
 from StringIO import StringIO
 from edxmako.shortcuts import render_to_string
 from instructor.paidcourse_enrollment_report import PaidCourseEnrollmentReportProvider
+from shoppingcart.models import (
+    PaidCourseRegistration, CourseRegCodeItem, InvoiceTransaction,
+    Invoice, CouponRedemption, RegistrationCodeRedemption, CourseRegistrationCode
+)
 
 from track.views import task_track
 from util.file import course_filename_prefix_generator, UniversalNewlineIterator
@@ -43,7 +48,7 @@ from openedx.core.djangoapps.course_groups.models import CourseUserGroup
 from openedx.core.djangoapps.content.course_structures.models import CourseStructure
 from opaque_keys.edx.keys import UsageKey
 from openedx.core.djangoapps.course_groups.cohorts import add_user_to_cohort, is_course_cohorted
-from student.models import CourseEnrollment
+from student.models import CourseEnrollment, CourseAccessRole
 from verify_student.models import SoftwareSecurePhotoVerification
 
 
@@ -52,7 +57,7 @@ TASK_LOG = logging.getLogger('edx.celery.task')
 
 # define value to use when no task_id is provided:
 UNKNOWN_TASK_ID = 'unknown-task_id'
-
+FILTERED_OUT_ROLES = ['staff', 'instructor', 'fiance_admin', 'sales_admin']
 # define values for update functions to use to return status to perform_module_state_update
 UPDATE_STATUS_SUCCEEDED = 'succeeded'
 UPDATE_STATUS_FAILED = 'failed'
@@ -561,7 +566,16 @@ def upload_csv_to_report_store(rows, csv_name, course_id, timestamp, config_name
     )
     tracker.emit(REPORT_REQUESTED_EVENT_NAME, {"report_type": csv_name, })
 
-def upload_exec_summary_to_store(data_dict, report_name, course_id, generated_at, config_name='GRADES_DOWNLOAD'):
+
+def upload_exec_summary_to_store(data_dict, report_name, course_id, generated_at, config_name='FINANCIAL_REPORTS'):
+    """
+    Upload Executive Summary Html file using ReportStore.
+
+    Arguments:
+        data_dict: containing executive report data.
+        report_name: Name of the resulting Html File.
+        course_id: ID of the course
+    """
     report_store = ReportStore.from_config(config_name)
 
     # Use the data dict and html template to generate the output buffer
@@ -576,7 +590,8 @@ def upload_exec_summary_to_store(data_dict, report_name, course_id, generated_at
         ),
         output_buffer
     )
-    tracker.emit(REPORT_REQUESTED_EVENT_NAME, {"report_type": report_name, })
+    tracker.emit(REPORT_REQUESTED_EVENT_NAME, {"report_type": report_name})
+
 
 def upload_grades_csv(_xmodule_instance_args, _entry_id, course_id, _task_input, action_name):  # pylint: disable=too-many-statements
     """
@@ -1011,15 +1026,20 @@ def upload_enrollment_report(_xmodule_instance_args, _entry_id, course_id, _task
 
 def upload_exec_summary_report(_xmodule_instance_args, _entry_id, course_id, _task_input, action_name):
     """
-    For a given `course_id`, generate a CSV file containing profile
-    information for all students that are enrolled, and store using a
-    `ReportStore`.
+    For a given `course_id`, generate a html report containing information,
+    which provides a snapshot of how the course is doing.
     """
     start_time = time()
     report_generation_date = datetime.now(UTC)
     status_interval = 100
-    students_in_course = CourseEnrollment.objects.enrolled_and_dropped_out_users(course_id)
-    task_progress = TaskProgress(action_name, students_in_course.count(), start_time)
+
+    enrolled_users = CourseEnrollment.objects.users_enrolled_in(course_id)
+    true_enrollment_count = 0
+    for user in enrolled_users:
+        if not CourseAccessRole.objects.filter(user=user, course_id=course_id, role__in=FILTERED_OUT_ROLES).exists():
+            true_enrollment_count += 1
+
+    task_progress = TaskProgress(action_name, true_enrollment_count, start_time)
 
     fmt = u'Task: {task_id}, InstructorTask ID: {entry_id}, Course: {course_id}, Input: {task_input}'
     task_info_string = fmt.format(
@@ -1030,125 +1050,96 @@ def upload_exec_summary_report(_xmodule_instance_args, _entry_id, course_id, _ta
     )
     TASK_LOG.info(u'%s, Task type: %s, Starting task execution', task_info_string, action_name)
 
-    # Loop over all our students and build our CSV lists in memory
-    rows = []
-    header = None
-    current_step = {'step': 'Gathering Profile Information'}
-    enrollment_report_provider = PaidCourseEnrollmentReportProvider()
-    total_students = students_in_course.count()
-    student_counter = 0
-    TASK_LOG.info(
-        u'%s, Task type: %s, Current step: %s, generating detailed enrollment report for total students: %s',
-        task_info_string,
-        action_name,
-        current_step,
-        total_students
+    single_purchase_total = PaidCourseRegistration.get_total_amount_of_purchased_item(course_id)
+    bulk_purchase_total = CourseRegCodeItem.get_total_amount_of_purchased_item(course_id)
+    paid_invoices_total = InvoiceTransaction.get_total_amount_of_paid_course_invoices(course_id)
+    gross_revenue = single_purchase_total + bulk_purchase_total + paid_invoices_total
+
+    all_invoices_total = Invoice.get_invoice_total_amount_for_course(course_id)
+    gross_pending_revenue = all_invoices_total - float(paid_invoices_total)
+
+    avg_price_paid = gross_revenue / true_enrollment_count
+
+    refunded_paid_enrollments = PaidCourseRegistration.get_paid_course_enrollment_count(
+        course_id, status='refunded'
     )
+    refunded_reg_code_enrollments = CourseRegCodeItem.get_course_regcode_enrollment_count(
+        course_id, status='refunded'
+    )
+    total_enrollments_refunded = refunded_paid_enrollments + refunded_reg_code_enrollments
 
-    for student in students_in_course:
-        # Periodically update task status (this is a cache write)
-        if task_progress.attempted % status_interval == 0:
-            task_progress.update_task_state(extra_meta=current_step)
-        task_progress.attempted += 1
+    paid_courses_refunded_amount = PaidCourseRegistration.get_total_amount_of_purchased_item(
+        course_id,
+        status='refunded'
+    )
+    course_code_refunded_amount = CourseRegCodeItem.get_total_amount_of_purchased_item(course_id, status='refunded')
+    total_amount_refunded = paid_courses_refunded_amount + course_code_refunded_amount
 
-        # Now add a log entry after certain intervals to get a hint that task is in progress
-        student_counter += 1
-        if student_counter % 100 == 0:
-            TASK_LOG.info(
-                u'%s, Task type: %s, Current step: %s, gathering enrollment profile for students in progress: %s/%s',
-                task_info_string,
-                action_name,
-                current_step,
-                student_counter,
-                total_students
-            )
+    top_discounted_codes = CouponRedemption.get_top_discount_codes_used(course_id)
+    total_coupon_codes_purchases = CouponRedemption.get_total_coupon_code_purchases(course_id)
 
-        user_data = enrollment_report_provider.get_user_profile(student.id)
-        course_enrollment_data = enrollment_report_provider.get_enrollment_info(student, course_id)
-        payment_data = enrollment_report_provider.get_payment_info(student, course_id)
+    bulk_purchases_codes = CourseRegistrationCode.order_generated_registration_codes(course_id)
+    unused_registration_codes = 0
+    for registration_code in bulk_purchases_codes:
+        if not RegistrationCodeRedemption.is_registration_code_redeemed(registration_code):
+            unused_registration_codes += 1
 
-        # display name map for the column headers
-        enrollment_report_headers = {
-            'User ID': _('User ID'),
-            'Username': _('Username'),
-            'Full Name': _('Full Name'),
-            'First Name': _('First Name'),
-            'Last Name': _('Last Name'),
-            'Company Name': _('Company Name'),
-            'Title': _('Title'),
-            'Language': _('Language'),
-            'Year of Birth': _('Year of Birth'),
-            'Gender': _('Gender'),
-            'Level of Education': _('Level of Education'),
-            'Mailing Address': _('Mailing Address'),
-            'Goals': _('Goals'),
-            'City': _('City'),
-            'Country': _('Country'),
-            'Enrollment Date': _('Enrollment Date'),
-            'Currently Enrolled': _('Currently Enrolled'),
-            'Enrollment Source': _('Enrollment Source'),
-            'Enrollment Role': _('Enrollment Role'),
-            'List Price': _('List Price'),
-            'Payment Amount': _('Payment Amount'),
-            'Coupon Codes Used': _('Coupon Codes Used'),
-            'Registration Code Used': _('Registration Code Used'),
-            'Payment Status': _('Payment Status'),
-            'Transaction Reference Number': _('Transaction Reference Number')
-        }
+    self_purchase_enrollment_count = PaidCourseRegistration.get_paid_course_enrollment_count(course_id)
+    bulk_purchase_enrollment_count = CourseRegCodeItem.get_course_regcode_enrollment_count(course_id)
+    total_enrollment_purchased = float(self_purchase_enrollment_count) + float(bulk_purchase_enrollment_count)
+    self_purchases_percentage = (float(self_purchase_enrollment_count) / total_enrollment_purchased) * 100
+    bulk_purchases_percentage = (float(bulk_purchase_enrollment_count) / total_enrollment_purchased) * 100
 
-        if not header:
-            header = user_data.keys() + course_enrollment_data.keys() + payment_data.keys()
-            display_headers = []
-            for header_element in header:
-                # translate header into a localizable display string
-                display_headers.append(enrollment_report_headers.get(header_element, header_element))
-            rows.append(display_headers)
-
-        rows.append(user_data.values() + course_enrollment_data.values() + payment_data.values())
-        task_progress.succeeded += 1
+    current_step = {'step': 'Gathering Executive Summary Report Information'}
 
     TASK_LOG.info(
-        u'%s, Task type: %s, Current step: %s, Detailed enrollment report generated for students: %s/%s',
+        u'%s, Task type: %s, Current step: %s, generating executive summary report',
         task_info_string,
         action_name,
-        current_step,
-        student_counter,
-        total_students
+        current_step
     )
 
-    # By this point, we've got the rows we're going to stuff into our CSV files.
-    current_step = {'step': 'Uploading CSVs'}
+    if task_progress.attempted % status_interval == 0:
+        task_progress.update_task_state(extra_meta=current_step)
+    task_progress.attempted += 1
+
+    # By this point, we've got the data that we need to generate html report.
+    current_step = {'step': 'Uploading Executive Summary Enrollment Report html file.'}
     task_progress.update_task_state(extra_meta=current_step)
     TASK_LOG.info(u'%s, Task type: %s, Current step: %s', task_info_string, action_name, current_step)
 
-    discount_codes_data = [('DISCOUNTCODE1', 25, 125),
-                           ('DISCOUNTCODE2', 24, 124),
-                           ('DISCOUNTCODE3', 23, 123),
-                           ('DISCOUNTCODE4', 22, 122),
-                           ('DISCOUNTCODE5', 21, 121)
-    ]
+    currency = settings.PAID_COURSE_REGISTRATION_CURRENCY[1]
     data_dict = {
-        'total_enrollments': 100,
-        'gross_revenue': '$100.00',
-        'gross_pending_revenue': '$100.00',
-        'total_enrollments_refunded': 12,
-        'total_amount_refunded': '$100.00',
-        'average_paid_price': '$100.00',
-        'discount_codes_data': discount_codes_data,
+        'total_enrollments': true_enrollment_count,
+        'gross_revenue': '{currency}{gross_revenue}'.format(currency=currency, gross_revenue=gross_revenue),
+        'gross_pending_revenue': '{currency}{gross_pending_revenue}'.format(
+            currency=currency,
+            gross_pending_revenue=gross_pending_revenue
+        ),
+        'total_enrollments_refunded': total_enrollments_refunded,
+        'total_amount_refunded': '{currency}{total_amount_refunded}'.format(
+            currency=currency,
+            total_amount_refunded=total_amount_refunded
+        ),
+        'average_paid_price': '{currency}{average_paid_price}'.format(
+            currency=currency,
+            average_paid_price=avg_price_paid
+        ),
+        'discount_codes_data': top_discounted_codes,
 
-        'total_seats_using_discount_codes': 50,
+        'total_seats_using_discount_codes': total_coupon_codes_purchases,
 
-        'total_self_purchase_seats': 35,
-        'total_bulk_purchase_seats': 65,
-        'unused_bulk_purchase_code_count': 1,
-        'self_purchases_percentage': 35,
-        'bulk_purchases_percentage': 65,
+        'total_self_purchase_seats': self_purchase_enrollment_count,
+        'total_bulk_purchase_seats': bulk_purchase_enrollment_count,
+        'unused_bulk_purchase_code_count': unused_registration_codes,
+        'self_purchases_percentage': self_purchases_percentage,
+        'bulk_purchases_percentage': bulk_purchases_percentage,
     }
     # Perform the actual upload
-    upload_exec_summary_to_store(data_dict, 'executive_report', course_id, report_generation_date, config_name='FINANCIAL_REPORTS')
-
+    upload_exec_summary_to_store(data_dict, 'executive_report', course_id, report_generation_date)
+    task_progress.succeeded += 1
     # One last update before we close out...
-    TASK_LOG.info(u'%s, Task type: %s, Finalizing detailed enrollment task', task_info_string, action_name)
+    TASK_LOG.info(u'%s, Task type: %s, Finalizing executive summary report task', task_info_string, action_name)
     return task_progress.update_task_state(extra_meta=current_step)
 
 

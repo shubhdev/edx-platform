@@ -200,8 +200,8 @@ def enrollment_report_features_csv(entry_id, xmodule_instance_args):
 @task(base=BaseInstructorTask, routing_key=settings.GRADES_DOWNLOAD_ROUTING_KEY)  # pylint: disable=not-callable
 def exec_summary_report_csv(entry_id, xmodule_instance_args):
     """
-    Compute student profile information for a course and upload the
-    CSV to an S3 bucket for download.
+    Compute executive summary report for a course and upload the
+    Html generated report to an S3 bucket for download.
     """
     # Translators: This is a past-tense verb that is inserted into task progress messages as {action}.
     action_name = ugettext_noop('generating_exec_summary_report')

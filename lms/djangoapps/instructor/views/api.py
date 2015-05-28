@@ -1204,7 +1204,7 @@ def get_enrollment_report(request, course_id):
 @require_finance_admin
 def get_exec_summary_report(request, course_id):
     """
-    get the enrollment report for the particular course.
+    get the executive summary report for the particular course.
     """
     course_key = SlashSeparatedCourseKey.from_deprecated_string(course_id)
     try:
