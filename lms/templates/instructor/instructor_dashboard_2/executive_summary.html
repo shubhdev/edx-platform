@@ -1,0 +1,115 @@
+<%! from django.utils.translation import ugettext as _ %>
+<%page args="data_dict"/>
+<!DOCTYPE HTML>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title>Edx Executive Summary</title>
+<style type="text/css">
+body {
+	font-family: Arial, Helvetica, sans-serif;
+	font-size:14px;
+	line-height:22px;
+	margin: 10px;
+}
+.box-bg {
+	background:#f1f1f1;
+	padding:10px;
+}
+th {
+	padding:5px;
+	background:#ccc;
+}
+h2 {
+	margin-top:0
+}
+</style>
+</head>
+
+<body>
+
+<table width="650" border="0" cellspacing="5" cellpadding="5">
+	<tr>
+		<td align="left" valign="top"><img src="https://d37djvu3ytnwxt.cloudfront.net/static/mit-prof-ed/images/MITPE-Digital-Programs-Logo.png" alt="logo" /></td>
+	</tr>
+	<tr>
+		<td align="left" valign="top" class="box-bg"><h2>${_("Executive Summary")}</h2>
+			<table width="100%">
+				<tr>
+					<td width="300">${_("Total Enrollments:")}</td>
+					<td align="right">${total_enrollments}</td>
+				</tr>
+				<tr>
+					<td>${_("Gross Revenue Collected to date:")}</td>
+					<td align="right">${gross_revenue}</td>
+				</tr>
+				<tr>
+					<td>${_("Gross Pending Revenue:")}</td>
+					<td align="right">${gross_pending_revenue}</td>
+				</tr>
+				<tr>
+					<td>${_("Total Enrollments Refunded:")}</td>
+					<td align="right">${total_enrollments_refunded}</td>
+				</tr>
+				<tr>
+					<td>${_("Total Amount Refunded:")}</td>
+					<td align="right">${total_amount_refunded}</td>
+				</tr>
+				<tr>
+					<td>${_("Average price paid:")}</td>
+					<td align="right">${average_paid_price}</td>
+				</tr>
+			</table></td>
+	</tr>
+	<tr>
+		<td align="left" valign="top" class="box-bg"><h3>${_("Top Discount Codes used:")}</h3>
+			<table width="500">
+				<tr>
+					<td>${_("Total seats bough using discount codes:")}</td>
+					<td>${total_seats_using_discount_codes}</td>
+				</tr>
+			</table>
+			<table width="100%">
+
+					<th>${_("Rank")}</th>
+					<th>${_("Discount Code")}</th>
+					<th>${_("Discount %")}</th>
+					<th>${_("Times used")}</th>
+        %for i, discount_code_data in enumerate(discount_codes_data):
+				<tr>
+					<td align="center">${i+1}</td>
+					<td align="center">${discount_code_data[0]}</td>
+					<td align="center">${discount_code_data[1]}</td>
+					<td align="center">${discount_code_data[2]}</td>
+				</tr>
+        %endfor
+			</table></td>
+	</tr>
+	<tr>
+		<td align="left" valign="top" class="box-bg"><h3>${_("Bulk vs Single Self Purchases")}</h3>
+			<table width="100%">
+				<tr>
+					<td>${_("Total seats bought as single self purchases:")}</td>
+					<td align="right">${total_self_purchase_seats}</td>
+				</tr>
+				<tr>
+					<td>${_("Total seats bought as bulk purchases:")}</td>
+					<td align="right">${total_bulk_purchase_seats}</td>
+				</tr>
+				<tr>
+					<td>${_("Total seats bought as bulk purchases (registration codes) but still unused (revenue at risk):")}</td>
+					<td align="right">${unused_bulk_purchase_code_count}</td>
+				</tr>
+				<tr>
+					<td>${_("Percentage of total seats bought single self purchases:")}</td>
+					<td align="right">${self_purchases_percentage}%</td>
+				</tr>
+				<tr>
+					<td>${_("Percentage of total seats bought bulk purchases:")}</td>
+					<td align="right">${bulk_purchases_percentage}%</td>
+				</tr>
+			</table></td>
+	</tr>
+</table>
+</body>
+</html>
