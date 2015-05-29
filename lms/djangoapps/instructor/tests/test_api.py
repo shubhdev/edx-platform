@@ -100,7 +100,7 @@ REPORTS_DATA = (
     {
         'report_type': 'Executive Summary',
         'instructor_api_endpoint': 'get_exec_summary_report',
-        'task_api_endpoint': 'instructor_task.api.submit_executive_summary_report_csv',
+        'task_api_endpoint': 'instructor_task.api.submit_executive_summary_report',
         'extra_instructor_api_kwargs': {}
     }
 )
