@@ -1064,11 +1064,6 @@ def upload_exec_summary_report(_xmodule_instance_args, _entry_id, course_id, _ta
     all_invoices_total = Invoice.get_invoice_total_amount_for_course(course_id)
     gross_pending_revenue = all_invoices_total - float(paid_invoices_total)
 
-    avg_price_paid = 0
-    # Avoid division by zero.
-    if true_enrollment_count != 0:
-        avg_price_paid = gross_revenue / true_enrollment_count
-
     refunded_self_purchased_seats = PaidCourseRegistration.get_self_purchased_seat_count(
         course_id, status='refunded'
     )
@@ -1088,6 +1083,7 @@ def upload_exec_summary_report(_xmodule_instance_args, _entry_id, course_id, _ta
     total_coupon_codes_purchases = CouponRedemption.get_total_coupon_code_purchases(course_id)
 
     bulk_purchased_codes = CourseRegistrationCode.order_generated_registration_codes(course_id)
+
     unused_registration_codes = 0
     for registration_code in bulk_purchased_codes:
         if not RegistrationCodeRedemption.is_registration_code_redeemed(registration_code):
@@ -1095,12 +1091,20 @@ def upload_exec_summary_report(_xmodule_instance_args, _entry_id, course_id, _ta
 
     self_purchased_seat_count = PaidCourseRegistration.get_self_purchased_seat_count(course_id)
     bulk_purchased_seat_count = CourseRegCodeItem.get_bulk_purchased_seat_count(course_id)
-    total_seats_count = self_purchased_seat_count + bulk_purchased_seat_count
+    total_invoiced_seats = CourseRegistrationCode.invoice_generated_registration_codes(course_id).count()
+
+    total_seats = self_purchased_seat_count + bulk_purchased_seat_count + total_invoiced_seats
+
     self_purchases_percentage = 0.0
     bulk_purchases_percentage = 0.0
-    if total_seats_count != 0:
-        self_purchases_percentage = (float(self_purchased_seat_count) / float(total_seats_count)) * 100
-        bulk_purchases_percentage = (float(bulk_purchased_seat_count) / float(total_seats_count)) * 100
+    invoice_purchases_percentage = 0.0
+    avg_price_paid = 0.0
+
+    if total_seats != 0:
+        self_purchases_percentage = (float(self_purchased_seat_count) / float(total_seats)) * 100
+        bulk_purchases_percentage = (float(bulk_purchased_seat_count) / float(total_seats)) * 100
+        invoice_purchases_percentage = (float(total_invoiced_seats) / float(total_seats)) * 100
+        avg_price_paid = gross_revenue / total_seats
 
     current_step = {'step': 'Gathering Executive Summary Report Information'}
 
@@ -1124,6 +1128,7 @@ def upload_exec_summary_report(_xmodule_instance_args, _entry_id, course_id, _ta
     currency = settings.PAID_COURSE_REGISTRATION_CURRENCY[1]
     data_dict = {
         'display_name': course.display_name,
+        'total_seats': total_seats,
         'total_enrollments': true_enrollment_count,
         'currency': currency,
         'gross_revenue': float(gross_revenue),
@@ -1137,10 +1142,13 @@ def upload_exec_summary_report(_xmodule_instance_args, _entry_id, course_id, _ta
 
         'total_self_purchase_seats': self_purchased_seat_count,
         'total_bulk_purchase_seats': bulk_purchased_seat_count,
+        'total_invoiced_seats': total_invoiced_seats,
         'unused_bulk_purchase_code_count': unused_registration_codes,
         'self_purchases_percentage': self_purchases_percentage,
         'bulk_purchases_percentage': bulk_purchases_percentage,
+        'invoice_purchases_percentage': invoice_purchases_percentage,
     }
+
     # Perform the actual upload
     upload_exec_summary_to_store(data_dict, 'executive_report', course_id, report_generation_date)
     task_progress.succeeded += 1

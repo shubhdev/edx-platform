@@ -32,6 +32,10 @@ h2 {
 		<td align="left" valign="top" class="box-bg"><h2>${_("Executive Summary for {display_name}".format(display_name=display_name))}</h2>
 			<table width="100%">
 				<tr>
+					<td width="300">${_("Total Seats:")}</td>
+					<td align="right">${total_seats}</td>
+				</tr>
+				<tr>
 					<td width="300">${_("Total Enrollments:")}</td>
 					<td align="right">${total_enrollments}</td>
 				</tr>
@@ -85,24 +89,32 @@ h2 {
 		<td align="left" valign="top" class="box-bg"><h3>${_("Bulk vs Single Self Purchases")}</h3>
 			<table width="100%">
 				<tr>
-					<td>${_("Total seats bought as single self purchases:")}</td>
+					<td>${_("Total seats bought via single seat purchase:")}</td>
 					<td align="right">${total_self_purchase_seats}</td>
 				</tr>
 				<tr>
-					<td>${_("Total seats bought as bulk purchases:")}</td>
+					<td>${_("Total seats bought via bulk purchase:")}</td>
 					<td align="right">${total_bulk_purchase_seats}</td>
 				</tr>
 				<tr>
-					<td>${_("Total seats bought as bulk purchases (registration codes) but still unused (revenue at risk):")}</td>
+					<td>${_("Total seats bought via invoice:")}</td>
+					<td align="right">${total_invoiced_seats}</td>
+				</tr>
+				<tr>
+					<td>${_("Total unused bulk purchase seats (revenue at risk):")}</td>
 					<td align="right">${unused_bulk_purchase_code_count}</td>
 				</tr>
 				<tr>
-					<td>${_("Percentage of total seats bought single self purchases:")}</td>
+					<td>${_("Percentage of total seats bought via single seat purchase:")}</td>
 					<td align="right">${"{0:0.2f}".format(self_purchases_percentage)}%</td>
 				</tr>
 				<tr>
-					<td>${_("Percentage of total seats bought bulk purchases:")}</td>
+					<td>${_("Percentage of total seats via bulk purchase:")}</td>
 					<td align="right">${"{0:0.2f}".format(bulk_purchases_percentage)}%</td>
+				</tr>
+				<tr>
+					<td>${_("Percentage of total seats via invoice:")}</td>
+					<td align="right">${"{0:0.2f}".format(invoice_purchases_percentage)}%</td>
 				</tr>
 			</table></td>
 	</tr>

@@ -1204,6 +1204,13 @@ class CourseRegistrationCode(models.Model):
         """
         return cls.objects.filter(order__isnull=False, course_id=course_id)
 
+    @classmethod
+    def invoice_generated_registration_codes(cls, course_id):
+        """
+        Returns the count of the unused paid registration codes
+        """
+        return cls.objects.filter(invoice__isnull=False, course_id=course_id)
+
 
 class RegistrationCodeRedemption(models.Model):
     """
