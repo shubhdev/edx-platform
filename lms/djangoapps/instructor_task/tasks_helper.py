@@ -1028,7 +1028,7 @@ def upload_enrollment_report(_xmodule_instance_args, _entry_id, course_id, _task
     return task_progress.update_task_state(extra_meta=current_step)
 
 
-def upload_exec_summary_report(_xmodule_instance_args, _entry_id, course_id, _task_input, action_name):
+def upload_exec_summary_report(_xmodule_instance_args, _entry_id, course_id, _task_input, action_name):  # pylint: disable=too-many-statements
     """
     For a given `course_id`, generate a html report containing information,
     which provides a snapshot of how the course is doing.
@@ -1040,7 +1040,9 @@ def upload_exec_summary_report(_xmodule_instance_args, _entry_id, course_id, _ta
     enrolled_users = CourseEnrollment.objects.users_enrolled_in(course_id)
     true_enrollment_count = 0
     for user in enrolled_users:
-        if not CourseAccessRole.objects.filter(user=user, course_id=course_id, role__in=FILTERED_OUT_ROLES).exists():
+        if not user.is_staff and not CourseAccessRole.objects.filter(
+                user=user, course_id=course_id, role__in=FILTERED_OUT_ROLES
+        ).exists():
             true_enrollment_count += 1
 
     task_progress = TaskProgress(action_name, true_enrollment_count, start_time)
@@ -1062,7 +1064,10 @@ def upload_exec_summary_report(_xmodule_instance_args, _entry_id, course_id, _ta
     all_invoices_total = Invoice.get_invoice_total_amount_for_course(course_id)
     gross_pending_revenue = all_invoices_total - float(paid_invoices_total)
 
-    avg_price_paid = gross_revenue / true_enrollment_count
+    avg_price_paid = 0
+    # make sure not be divisible by zero.
+    if true_enrollment_count != 0:
+        avg_price_paid = gross_revenue / true_enrollment_count
 
     refunded_paid_enrollments = PaidCourseRegistration.get_paid_course_enrollment_count(
         course_id, status='refunded'
@@ -1090,9 +1095,12 @@ def upload_exec_summary_report(_xmodule_instance_args, _entry_id, course_id, _ta
 
     self_purchase_enrollment_count = PaidCourseRegistration.get_paid_course_enrollment_count(course_id)
     bulk_purchase_enrollment_count = CourseRegCodeItem.get_course_regcode_enrollment_count(course_id)
-    total_enrollment_purchased = float(self_purchase_enrollment_count) + float(bulk_purchase_enrollment_count)
-    self_purchases_percentage = (float(self_purchase_enrollment_count) / total_enrollment_purchased) * 100
-    bulk_purchases_percentage = (float(bulk_purchase_enrollment_count) / total_enrollment_purchased) * 100
+    total_enrollment_purchased = self_purchase_enrollment_count + bulk_purchase_enrollment_count
+    self_purchases_percentage = 0.0
+    bulk_purchases_percentage = 0.0
+    if total_enrollment_purchased != 0:
+        self_purchases_percentage = (float(self_purchase_enrollment_count) / float(total_enrollment_purchased)) * 100
+        bulk_purchases_percentage = (float(bulk_purchase_enrollment_count) / float(total_enrollment_purchased)) * 100
 
     current_step = {'step': 'Gathering Executive Summary Report Information'}
 
@@ -1112,23 +1120,17 @@ def upload_exec_summary_report(_xmodule_instance_args, _entry_id, course_id, _ta
     task_progress.update_task_state(extra_meta=current_step)
     TASK_LOG.info(u'%s, Task type: %s, Current step: %s', task_info_string, action_name, current_step)
 
+    course = get_course_by_id(course_id, depth=0)
     currency = settings.PAID_COURSE_REGISTRATION_CURRENCY[1]
     data_dict = {
+        'display_name': course.display_name,
         'total_enrollments': true_enrollment_count,
-        'gross_revenue': '{currency}{gross_revenue}'.format(currency=currency, gross_revenue=gross_revenue),
-        'gross_pending_revenue': '{currency}{gross_pending_revenue}'.format(
-            currency=currency,
-            gross_pending_revenue=gross_pending_revenue
-        ),
+        'currency': currency,
+        'gross_revenue': float(gross_revenue),
+        'gross_pending_revenue': gross_pending_revenue,
         'total_enrollments_refunded': total_enrollments_refunded,
-        'total_amount_refunded': '{currency}{total_amount_refunded}'.format(
-            currency=currency,
-            total_amount_refunded=total_amount_refunded
-        ),
-        'average_paid_price': '{currency}{average_paid_price}'.format(
-            currency=currency,
-            average_paid_price=avg_price_paid
-        ),
+        'total_amount_refunded': float(total_amount_refunded),
+        'average_paid_price': float(avg_price_paid),
         'discount_codes_data': top_discounted_codes,
 
         'total_seats_using_discount_codes': total_coupon_codes_purchases,

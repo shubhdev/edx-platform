@@ -1208,7 +1208,7 @@ def get_exec_summary_report(request, course_id):
     """
     course_key = SlashSeparatedCourseKey.from_deprecated_string(course_id)
     try:
-        instructor_task.api.submit_executive_summary_report_csv(request, course_key)
+        instructor_task.api.submit_executive_summary_report(request, course_key)
         success_status = _("Your Executive Summary report is being generated! "
                            "You can view the status of the generation task in the 'Pending Instructor Tasks' section.")
         return JsonResponse({"status": success_status})

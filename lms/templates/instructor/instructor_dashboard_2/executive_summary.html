@@ -29,10 +29,7 @@ h2 {
 
 <table width="650" border="0" cellspacing="5" cellpadding="5">
 	<tr>
-		<td align="left" valign="top"><img src="https://d37djvu3ytnwxt.cloudfront.net/static/mit-prof-ed/images/MITPE-Digital-Programs-Logo.png" alt="logo" /></td>
-	</tr>
-	<tr>
-		<td align="left" valign="top" class="box-bg"><h2>${_("Executive Summary")}</h2>
+		<td align="left" valign="top" class="box-bg"><h2>${_("Executive Summary for {display_name}".format(display_name=display_name))}</h2>
 			<table width="100%">
 				<tr>
 					<td width="300">${_("Total Enrollments:")}</td>
@@ -40,11 +37,11 @@ h2 {
 				</tr>
 				<tr>
 					<td>${_("Gross Revenue Collected to date:")}</td>
-					<td align="right">${gross_revenue}</td>
+					<td align="right">${currency}${"{0:0.2f}".format(gross_revenue)}</td>
 				</tr>
 				<tr>
 					<td>${_("Gross Pending Revenue:")}</td>
-					<td align="right">${gross_pending_revenue}</td>
+					<td align="right">${currency}${"{0:0.2f}".format(gross_pending_revenue)}</td>
 				</tr>
 				<tr>
 					<td>${_("Total Enrollments Refunded:")}</td>
@@ -52,11 +49,11 @@ h2 {
 				</tr>
 				<tr>
 					<td>${_("Total Amount Refunded:")}</td>
-					<td align="right">${total_amount_refunded}</td>
+					<td align="right">${currency}${"{0:0.2f}".format(total_amount_refunded)}</td>
 				</tr>
 				<tr>
 					<td>${_("Average price paid:")}</td>
-					<td align="right">${average_paid_price}</td>
+					<td align="right">${currency}${"{0:0.2f}".format(average_paid_price)}</td>
 				</tr>
 			</table></td>
 	</tr>
