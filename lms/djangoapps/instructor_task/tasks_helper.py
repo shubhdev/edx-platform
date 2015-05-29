@@ -1065,7 +1065,7 @@ def upload_exec_summary_report(_xmodule_instance_args, _entry_id, course_id, _ta
     gross_pending_revenue = all_invoices_total - float(paid_invoices_total)
 
     avg_price_paid = 0
-    # make sure not be divisible by zero.
+    # Avoid division by zero.
     if true_enrollment_count != 0:
         avg_price_paid = gross_revenue / true_enrollment_count
 
