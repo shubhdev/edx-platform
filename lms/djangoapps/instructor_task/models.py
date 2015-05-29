@@ -275,7 +275,7 @@ class S3ReportStore(ReportStore):
 
         return key
 
-    def store(self, course_id, filename, buff, content_type="text/csv"):
+    def store(self, course_id, filename, buff, config=None):
         """
         Store the contents of `buff` in a directory determined by hashing
         `course_id`, and name the file `filename`. `buff` is typically a
@@ -288,9 +288,14 @@ class S3ReportStore(ReportStore):
         """
         key = self.key_for(course_id, filename)
 
+        _config = config if config else {}
+
+        content_type = _config.get('content_type', 'text/csv')
+        content_encoding = _config.get('content_encoding', 'gzip')
+
         data = buff.getvalue()
         key.size = len(data)
-        key.content_encoding = "gzip"
+        key.content_encoding = content_encoding
         key.content_type = content_type
 
         # Just setting the content encoding and type above should work
@@ -299,7 +304,7 @@ class S3ReportStore(ReportStore):
         key.set_contents_from_string(
             data,
             headers={
-                "Content-Encoding": "gzip",
+                "Content-Encoding": content_encoding,
                 "Content-Length": len(data),
                 "Content-Type": content_type,
             }
@@ -371,7 +376,7 @@ class LocalFSReportStore(ReportStore):
         """Return the full path to a given file for a given course."""
         return os.path.join(self.root_path, urllib.quote(course_id.to_deprecated_string(), safe=''), filename)
 
-    def store(self, course_id, filename, buff):
+    def store(self, course_id, filename, buff, config=None):
         """
         Given the `course_id` and `filename`, store the contents of `buff` in
         that file. Overwrite anything that was there previously. `buff` is
