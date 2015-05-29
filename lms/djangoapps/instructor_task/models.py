@@ -376,7 +376,7 @@ class LocalFSReportStore(ReportStore):
         """Return the full path to a given file for a given course."""
         return os.path.join(self.root_path, urllib.quote(course_id.to_deprecated_string(), safe=''), filename)
 
-    def store(self, course_id, filename, buff, config=None):
+    def store(self, course_id, filename, buff, config=None):  # pylint: disable=unused-argument
         """
         Given the `course_id` and `filename`, store the contents of `buff` in
         that file. Overwrite anything that was there previously. `buff` is
