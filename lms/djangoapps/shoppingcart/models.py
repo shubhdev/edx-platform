@@ -1421,7 +1421,7 @@ class PaidCourseRegistration(OrderItem):
     course_enrollment = models.ForeignKey(CourseEnrollment, null=True)
 
     @classmethod
-    def get_paid_course_enrollment_count(cls, course_key, status='purchased'):
+    def get_self_purchased_seat_count(cls, course_key, status='purchased'):
         """
         returns the count of paid_course items filter by course_id and status.
         """
@@ -1600,11 +1600,17 @@ class CourseRegCodeItem(OrderItem):
     mode = models.SlugField(default=CourseMode.DEFAULT_MODE_SLUG)
 
     @classmethod
-    def get_course_regcode_enrollment_count(cls, course_key, status='purchased'):
+    def get_bulk_purchased_seat_count(cls, course_key, status='purchased'):
         """
-        returns the count of course_reg code items filter by course_id and status.
+        returns the sum of bulk purchases seats.
         """
-        return cls.objects.filter(course_id=course_key, status=status).count()
+        total = 0
+        result = cls.objects.filter(course_id=course_key, status=status).aggregate(total=Sum('qty'))
+
+        if result['total'] is not None:
+            total = result['total']
+
+        return total
 
     @classmethod
     def contained_in_order(cls, order, course_id):

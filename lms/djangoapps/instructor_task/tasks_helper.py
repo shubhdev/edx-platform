@@ -1069,38 +1069,38 @@ def upload_exec_summary_report(_xmodule_instance_args, _entry_id, course_id, _ta
     if true_enrollment_count != 0:
         avg_price_paid = gross_revenue / true_enrollment_count
 
-    refunded_paid_enrollments = PaidCourseRegistration.get_paid_course_enrollment_count(
+    refunded_self_purchased_seats = PaidCourseRegistration.get_self_purchased_seat_count(
         course_id, status='refunded'
     )
-    refunded_reg_code_enrollments = CourseRegCodeItem.get_course_regcode_enrollment_count(
+    refunded_bulk_purchased_seats = CourseRegCodeItem.get_bulk_purchased_seat_count(
         course_id, status='refunded'
     )
-    total_enrollments_refunded = refunded_paid_enrollments + refunded_reg_code_enrollments
+    total_seats_refunded = refunded_self_purchased_seats + refunded_bulk_purchased_seats
 
-    paid_courses_refunded_amount = PaidCourseRegistration.get_total_amount_of_purchased_item(
+    self_purchased_refunds = PaidCourseRegistration.get_total_amount_of_purchased_item(
         course_id,
         status='refunded'
     )
-    course_code_refunded_amount = CourseRegCodeItem.get_total_amount_of_purchased_item(course_id, status='refunded')
-    total_amount_refunded = paid_courses_refunded_amount + course_code_refunded_amount
+    bulk_purchase_refunds = CourseRegCodeItem.get_total_amount_of_purchased_item(course_id, status='refunded')
+    total_amount_refunded = self_purchased_refunds + bulk_purchase_refunds
 
     top_discounted_codes = CouponRedemption.get_top_discount_codes_used(course_id)
     total_coupon_codes_purchases = CouponRedemption.get_total_coupon_code_purchases(course_id)
 
-    bulk_purchases_codes = CourseRegistrationCode.order_generated_registration_codes(course_id)
+    bulk_purchased_codes = CourseRegistrationCode.order_generated_registration_codes(course_id)
     unused_registration_codes = 0
-    for registration_code in bulk_purchases_codes:
+    for registration_code in bulk_purchased_codes:
         if not RegistrationCodeRedemption.is_registration_code_redeemed(registration_code):
             unused_registration_codes += 1
 
-    self_purchase_enrollment_count = PaidCourseRegistration.get_paid_course_enrollment_count(course_id)
-    bulk_purchase_enrollment_count = CourseRegCodeItem.get_course_regcode_enrollment_count(course_id)
-    total_enrollment_purchased = self_purchase_enrollment_count + bulk_purchase_enrollment_count
+    self_purchased_seat_count = PaidCourseRegistration.get_self_purchased_seat_count(course_id)
+    bulk_purchased_seat_count = CourseRegCodeItem.get_bulk_purchased_seat_count(course_id)
+    total_seats_count = self_purchased_seat_count + bulk_purchased_seat_count
     self_purchases_percentage = 0.0
     bulk_purchases_percentage = 0.0
-    if total_enrollment_purchased != 0:
-        self_purchases_percentage = (float(self_purchase_enrollment_count) / float(total_enrollment_purchased)) * 100
-        bulk_purchases_percentage = (float(bulk_purchase_enrollment_count) / float(total_enrollment_purchased)) * 100
+    if total_seats_count != 0:
+        self_purchases_percentage = (float(self_purchased_seat_count) / float(total_seats_count)) * 100
+        bulk_purchases_percentage = (float(bulk_purchased_seat_count) / float(total_seats_count)) * 100
 
     current_step = {'step': 'Gathering Executive Summary Report Information'}
 
@@ -1128,15 +1128,15 @@ def upload_exec_summary_report(_xmodule_instance_args, _entry_id, course_id, _ta
         'currency': currency,
         'gross_revenue': float(gross_revenue),
         'gross_pending_revenue': gross_pending_revenue,
-        'total_enrollments_refunded': total_enrollments_refunded,
+        'total_seats_refunded': total_seats_refunded,
         'total_amount_refunded': float(total_amount_refunded),
         'average_paid_price': float(avg_price_paid),
         'discount_codes_data': top_discounted_codes,
 
         'total_seats_using_discount_codes': total_coupon_codes_purchases,
 
-        'total_self_purchase_seats': self_purchase_enrollment_count,
-        'total_bulk_purchase_seats': bulk_purchase_enrollment_count,
+        'total_self_purchase_seats': self_purchased_seat_count,
+        'total_bulk_purchase_seats': bulk_purchased_seat_count,
         'unused_bulk_purchase_code_count': unused_registration_codes,
         'self_purchases_percentage': self_purchases_percentage,
         'bulk_purchases_percentage': bulk_purchases_percentage,

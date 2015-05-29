@@ -45,7 +45,7 @@ h2 {
 				</tr>
 				<tr>
 					<td>${_("Total Enrollments Refunded:")}</td>
-					<td align="right">${total_enrollments_refunded}</td>
+					<td align="right">${total_seats_refunded}</td>
 				</tr>
 				<tr>
 					<td>${_("Total Amount Refunded:")}</td>
@@ -98,11 +98,11 @@ h2 {
 				</tr>
 				<tr>
 					<td>${_("Percentage of total seats bought single self purchases:")}</td>
-					<td align="right">${self_purchases_percentage}%</td>
+					<td align="right">${"{0:0.2f}".format(self_purchases_percentage)}%</td>
 				</tr>
 				<tr>
 					<td>${_("Percentage of total seats bought bulk purchases:")}</td>
-					<td align="right">${bulk_purchases_percentage}%</td>
+					<td align="right">${"{0:0.2f}".format(bulk_purchases_percentage)}%</td>
 				</tr>
 			</table></td>
 	</tr>
