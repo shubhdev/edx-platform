@@ -588,7 +588,8 @@ def upload_exec_summary_to_store(data_dict, report_name, course_id, generated_at
             report_name=report_name,
             timestamp_str=generated_at.strftime("%Y-%m-%d-%H%M")
         ),
-        output_buffer
+        output_buffer,
+        content_type='text/html'
     )
     tracker.emit(REPORT_REQUESTED_EVENT_NAME, {"report_type": report_name})
 

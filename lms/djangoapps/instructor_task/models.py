@@ -275,7 +275,7 @@ class S3ReportStore(ReportStore):
 
         return key
 
-    def store(self, course_id, filename, buff):
+    def store(self, course_id, filename, buff, content_type="text/csv"):
         """
         Store the contents of `buff` in a directory determined by hashing
         `course_id`, and name the file `filename`. `buff` is typically a
@@ -291,7 +291,7 @@ class S3ReportStore(ReportStore):
         data = buff.getvalue()
         key.size = len(data)
         key.content_encoding = "gzip"
-        key.content_type = "text/csv"
+        key.content_type = content_type
 
         # Just setting the content encoding and type above should work
         # according to the docs, but when experimenting, this was necessary for
@@ -301,7 +301,7 @@ class S3ReportStore(ReportStore):
             headers={
                 "Content-Encoding": "gzip",
                 "Content-Length": len(data),
-                "Content-Type": "text/csv",
+                "Content-Type": content_type,
             }
         )
 
