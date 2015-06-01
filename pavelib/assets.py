@@ -28,22 +28,26 @@ THEME_COFFEE_PATHS = []
 THEME_SASS_PATHS = {}
 
 edxapp_env = Env()
+
 if edxapp_env.feature_flags.get('USE_CUSTOM_THEME', False):
     theme_name = edxapp_env.env_tokens.get('THEME_NAME', '')
     parent_dir = path(edxapp_env.REPO_ROOT).abspath().parent
     theme_root = parent_dir / "themes" / theme_name
     THEME_COFFEE_PATHS = [theme_root]
     THEME_SASS_PATHS = [theme_root / "static" / "sass"]
+
 if edxapp_env.env_tokens.get("THEME_DIR", False):
     theme_dir = path(edxapp_env.env_tokens["THEME_DIR"])
     lms_sass = theme_dir / "lms" / "static" / "sass"
     lms_css = theme_dir / "lms" / "static" / "css"
     if lms_sass.isdir():
-        THEME_SASS_PATHS[lms_sass] = lms_css if lms_css.isdir() else None
+        lms_css.mkdir_p()
+        THEME_SASS_PATHS[lms_sass] = lms_css
     studio_sass = theme_dir / "studio" / "static" / "sass"
     studio_css = theme_dir / "studio" / "static" / "css"
     if studio_sass.isdir():
-        THEME_SASS_PATHS[studio_sass] = studio_css if studio_css.isdir() else None
+        studio_css.mkdir_p()
+        THEME_SASS_PATHS[studio_sass] = studio_css
 
 
 class CoffeeScriptWatcher(PatternMatchingEventHandler):
