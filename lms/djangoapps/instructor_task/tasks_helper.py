@@ -3,6 +3,7 @@ This file contains tasks that are designed to perform background operations on t
 running state of a course.
 
 """
+import base64
 import json
 from collections import OrderedDict
 from datetime import datetime
@@ -579,6 +580,15 @@ def upload_exec_summary_to_store(data_dict, report_name, course_id, generated_at
     """
     report_store = ReportStore.from_config(config_name)
 
+    # Embed the brand and the cobrand logos in the generated html in base64 encoding.
+    logo_data_binary = open(data_dict['cobrand_logo_path'], 'rt').read()
+    encoded_data = base64.b64encode(logo_data_binary)
+    data_dict['cobrand_logo_data'] = encoded_data
+
+    logo_data_binary = open(data_dict['logo_path'], 'rt').read()
+    encoded_data = base64.b64encode(logo_data_binary)
+    data_dict['logo_data'] = encoded_data
+
     # Use the data dict and html template to generate the output buffer
     output_buffer = StringIO(render_to_string("instructor/instructor_dashboard_2/executive_summary.html", data_dict))
 
@@ -1127,11 +1137,17 @@ def upload_exec_summary_report(_xmodule_instance_args, _entry_id, course_id, _ta
 
     course = get_course_by_id(course_id, depth=0)
     currency = settings.PAID_COURSE_REGISTRATION_CURRENCY[1]
-    cobrand_logo_path = microsite.get_value(
-        "PDF_RECEIPT_COBRAND_LOGO_PATH", settings.PDF_RECEIPT_COBRAND_LOGO_PATH
-    )
+
+    cobrand_logo_path = microsite.get_value("PDF_RECEIPT_COBRAND_LOGO_PATH", settings.PDF_RECEIPT_COBRAND_LOGO_PATH)
+    logo_path = microsite.get_value("PDF_RECEIPT_LOGO_PATH", settings.PDF_RECEIPT_LOGO_PATH)
+    logo_height_ratio = float(microsite.get_value(
+        "PDF_RECEIPT_LOGO_HEIGHT_MM", settings.PDF_RECEIPT_LOGO_HEIGHT_MM)) / microsite.get_value(
+        "PDF_RECEIPT_COBRAND_LOGO_HEIGHT_MM", settings.PDF_RECEIPT_COBRAND_LOGO_HEIGHT_MM)
+
     data_dict = {
         'cobrand_logo_path': cobrand_logo_path,
+        'logo_path': logo_path,
+        'logo_height_ratio': logo_height_ratio,
         'display_name': course.display_name,
         'start_date': course.start.strftime("%Y-%m-%d") if course.start is not None else 'N/A',
         'end_date': course.end.strftime("%Y-%m-%d") if course.end is not None else 'N/A',
@@ -1145,9 +1161,7 @@ def upload_exec_summary_report(_xmodule_instance_args, _entry_id, course_id, _ta
         'total_amount_refunded': float(total_amount_refunded),
         'average_paid_price': float(avg_price_paid),
         'discount_codes_data': top_discounted_codes,
-
         'total_seats_using_discount_codes': total_coupon_codes_purchases,
-
         'total_self_purchase_seats': self_purchased_seat_count,
         'total_bulk_purchase_seats': bulk_purchased_seat_count,
         'total_invoiced_seats': total_invoiced_seats,
