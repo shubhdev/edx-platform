@@ -581,13 +581,23 @@ def upload_exec_summary_to_store(data_dict, report_name, course_id, generated_at
     report_store = ReportStore.from_config(config_name)
 
     # Embed the brand and the cobrand logos in the generated html in base64 encoding.
-    logo_data_binary = open(data_dict['cobrand_logo_path'], 'rt').read()
-    encoded_data = base64.b64encode(logo_data_binary)
-    data_dict['cobrand_logo_data'] = encoded_data
+    data_dict['cobrand_logo_data'] = None
+    if data_dict['cobrand_logo_path']:
+        try:
+            logo_data_binary = open(data_dict['cobrand_logo_path'], 'rt').read()
+            encoded_data = base64.b64encode(logo_data_binary)
+            data_dict['cobrand_logo_data'] = encoded_data
+        except IOError, ex:
+            TASK_LOG.exception(ex)
 
-    logo_data_binary = open(data_dict['logo_path'], 'rt').read()
-    encoded_data = base64.b64encode(logo_data_binary)
-    data_dict['logo_data'] = encoded_data
+    data_dict['logo_data'] = None
+    if data_dict['logo_path']:
+        try:
+            logo_data_binary = open(data_dict['logo_path'], 'rt').read()
+            encoded_data = base64.b64encode(logo_data_binary)
+            data_dict['logo_data'] = encoded_data
+        except IOError, ex:
+            TASK_LOG.exception(ex)
 
     # Use the data dict and html template to generate the output buffer
     output_buffer = StringIO(render_to_string("instructor/instructor_dashboard_2/executive_summary.html", data_dict))
