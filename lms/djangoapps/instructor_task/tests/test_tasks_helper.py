@@ -807,7 +807,7 @@ class TestExecutiveSummaryReport(TestReportMixin, InstructorTaskCourseTestCase):
         expected_data = [
             'Gross Revenue Collected to date:', '$1481.82',
             'Gross Pending Revenue:', '$0.00',
-            'Average price paid:', '$740.91',
+            'Average price paid:', '$296.36',
             'Total seats bough using discount codes:', '<td>2</td>'
         ]
         self.assertDictContainsSubset({'attempted': 1, 'succeeded': 1, 'failed': 0}, result)

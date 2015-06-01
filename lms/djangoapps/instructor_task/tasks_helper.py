@@ -23,6 +23,7 @@ from pytz import UTC
 from StringIO import StringIO
 from edxmako.shortcuts import render_to_string
 from instructor.paidcourse_enrollment_report import PaidCourseEnrollmentReportProvider
+from microsite_configuration import microsite
 from shoppingcart.models import (
     PaidCourseRegistration, CourseRegCodeItem, InvoiceTransaction,
     Invoice, CouponRedemption, RegistrationCodeRedemption, CourseRegistrationCode
@@ -1126,8 +1127,15 @@ def upload_exec_summary_report(_xmodule_instance_args, _entry_id, course_id, _ta
 
     course = get_course_by_id(course_id, depth=0)
     currency = settings.PAID_COURSE_REGISTRATION_CURRENCY[1]
+    cobrand_logo_path = microsite.get_value(
+        "PDF_RECEIPT_COBRAND_LOGO_PATH", settings.PDF_RECEIPT_COBRAND_LOGO_PATH
+    )
     data_dict = {
+        'cobrand_logo_path': cobrand_logo_path,
         'display_name': course.display_name,
+        'start_date': course.start.strftime("%Y-%m-%d") if course.start is not None else 'N/A',
+        'end_date': course.end.strftime("%Y-%m-%d") if course.end is not None else 'N/A',
+        'report_generation_date': report_generation_date.strftime("%Y-%m-%d"),
         'total_seats': total_seats,
         'total_enrollments': true_enrollment_count,
         'currency': currency,
