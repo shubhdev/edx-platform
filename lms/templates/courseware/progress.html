@@ -24,6 +24,7 @@ from django.utils.http import urlquote_plus
 <script type="text/javascript" src="${static.url('js/vendor/flot/jquery.flot.stack.js')}"></script>
 <script type="text/javascript" src="${static.url('js/vendor/flot/jquery.flot.symbol.js')}"></script>
 <script type="text/javascript" src="${static.url('js/courseware/certificates_api.js')}"></script>
+<script type="text/javascript" src="${static.url('js/courseware/credit_progress.js')}"></script>
 <script>
   ${progress_graph.body(grade_summary, course.grade_cutoffs, "grade-detail-graph", not course.no_grade, not course.no_grade)}
 </script>
@@ -92,6 +93,49 @@ from django.utils.http import urlquote_plus
 
       %if not course.disable_progress_graph:
         <div class="grade-detail-graph" id="grade-detail-graph" aria-hidden="true"></div>
+      %endif
+
+      %if credit_course is not None:
+        <div class="credit-eligibility">
+            <div class="credit-eligibility-container">
+                <div class="eligibility-heading">
+                    <h2>Eligibility Requirements for credit</h2>
+                </div>
+                %if credit_course['eligibility_status'] == 'Not Eligible':
+                    <span class="eligibility_msg">username, You are no longer eligible for this course</span>
+                %elif credit_course['eligibility_status'] == 'Eligible':
+                    <span class="eligibility_msg">username, You have met the requirements for the credit. Please
+                        <a href="#">Check your dashboard</a> for purchase.
+                    </span>
+                %elif credit_course['eligibility_status'] == 'Partial Eligible':
+                    <span>${_("You have not yet met the requirements for credit")}</span>
+                %endif
+                <button class="credit-help"><i class="fa fa-question"></i></button><br>
+                <div class="requirement-container is-hidden">
+                    %for requirement in credit_course['requirements']:
+                        <div class="requirement">
+                            <div class="requirement-name">${_(requirement['name'])}</div>
+                            <div class="requirement-status">
+                                %if requirement['status']:
+                                    %if requirement['status'] == 'submitted':
+                                        <span class="requirement-submitted">${_("Verification Submitted")}</span>
+                                    %elif requirement['status'] == 'failed':
+                                        <img src="${static.url('images/incorrect-icon.png')}">
+                                        <span>${_("Verification Failed" )}</span>
+                                    %elif requirement['status'] == 'satisfied':
+                                        <img src="${static.url('images/correct-icon.png')}">
+                                        <span>Verified on ${requirement['status_date']}</span>
+                                    %endif
+                                %else:
+                                    <span class="not-achieve">Not yet achieved</span>
+                                %endif
+                            </div>
+                        </div>
+                    %endfor
+                 </div>
+                <button class="detail-collapse"><i class="fa fa-caret-down"></i><span>Expand for details</span></button>
+            </div>
+        </div>
       %endif
 
       <div class="chapters">
