@@ -71,8 +71,7 @@ class CourseEnrollmentSerializer(serializers.ModelSerializer):
 
     """
 
-    course_details = \
-        serializers.SerializerMethodField('get_course_details')
+    course_details = serializers.SerializerMethodField('get_course_details')
     user = serializers.SerializerMethodField('get_username')
 
     @property

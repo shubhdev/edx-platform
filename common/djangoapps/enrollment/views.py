@@ -13,8 +13,7 @@ from django.utils.decorators import method_decorator
 from opaque_keys import InvalidKeyError
 from course_modes.models import CourseMode
 from openedx.core.djangoapps.user_api.preferences.api import update_email_opt_in
-from openedx.core.lib.api.permissions import ApiKeyHeaderPermission, \
-    ApiKeyHeaderPermissionIsAuthenticated
+from openedx.core.lib.api.permissions import ApiKeyHeaderPermission, ApiKeyHeaderPermissionIsAuthenticated
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.throttling import UserRateThrottle
@@ -23,14 +22,16 @@ from opaque_keys.edx.keys import CourseKey
 from embargo import api as embargo_api
 from cors_csrf.authentication import SessionAuthenticationCrossDomainCsrf
 from cors_csrf.decorators import ensure_csrf_cookie_cross_domain
-from openedx.core.lib.api.authentication import SessionAuthenticationAllowInactiveUser, \
-    OAuth2AuthenticationAllowInactiveUser
+from openedx.core.lib.api.authentication import (
+    SessionAuthenticationAllowInactiveUser, OAuth2AuthenticationAllowInactiveUser
+)
 
 from util.disable_rate_limit import can_disable_rate_limit
 from enrollment import api
-from enrollment.errors import CourseNotFoundError, \
-    CourseEnrollmentError, CourseModeNotFoundError, \
-    CourseEnrollmentExistsError
+from enrollment.errors import (
+    CourseNotFoundError, CourseEnrollmentError,
+    CourseModeNotFoundError, CourseEnrollmentExistsError
+)
 
 from student.models import User
 
@@ -69,9 +70,7 @@ class EnrollmentUserThrottle(UserRateThrottle, ApiKeyPermissionMixIn):
     rate = '40/minute'
 
     def allow_request(self, request, view):
-        return self.has_api_key_permissions(request) \
-            or super(EnrollmentUserThrottle,
-                     self).allow_request(request, view)
+        return self.has_api_key_permissions(request) or super(EnrollmentUserThrottle, self).allow_request(request, view)
 
 
 @can_disable_rate_limit
@@ -151,10 +150,9 @@ class EnrollmentView(APIView, ApiKeyPermissionMixIn):
 
         # TODO Implement proper permissions
 
-        if request.user.username != username \
-            and not self.has_api_key_permissions(request) \
-                and not request.user.is_superuser:
-
+        if (request.user.username != username
+                and not self.has_api_key_permissions(request)
+                and not request.user.is_superuser):
             # Return a 404 instead of a 403 (Unauthorized). If one user is looking up
             # other users, do not let them deduce the existence of an enrollment.
             return Response(status=status.HTTP_404_NOT_FOUND)
@@ -232,8 +230,7 @@ class EnrollmentCourseDetailView(APIView):
         """
 
         try:
-            return Response(api.get_course_enrollment_details(course_id,
-                            request.GET.get('include_expired', '')))
+            return Response(api.get_course_enrollment_details(course_id, request.GET.get('include_expired', '')))
         except CourseNotFoundError:
             msg = u"No course found for course ID '{course_id}'"
             return Response(status=status.HTTP_400_BAD_REQUEST,
@@ -372,8 +369,7 @@ class EnrollmentListView(APIView, ApiKeyPermissionMixIn):
         # Check that the user specified is either the same user, or this is a server-to-server request.
         if not username:
             username = request.user.username
-        if username != request.user.username \
-                and not has_api_key_permissions:
+        if username != request.user.username and not has_api_key_permissions:
 
             # Return a 404 instead of a 403 (Unauthorized). If one user is looking up
             # other users, do not let them deduce the existence of an enrollment.

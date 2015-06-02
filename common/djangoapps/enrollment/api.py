@@ -241,9 +241,10 @@ def update_enrollment(user_id, course_id, mode=None, is_active=None):
     )
 
     if enrollment is None:
-        msg = \
-            u'Course Enrollment not found for user {user} in course {course}'.format(user=user_id,
-                                                                                     course=course_id)
+        msg = (
+            u'Course Enrollment not found for user {user} '
+            u'in course {course}'
+        ).format(user=user_id, course=course_id)
         log.warn(msg)
         raise errors.EnrollmentNotFoundError(msg)
     return enrollment
@@ -288,11 +289,10 @@ def get_course_enrollment_details(course_id, include_expired=False):
 
     """
 
-    cache_key = \
-        u'enrollment.course.details.{course_id}.{include_expired}'.format(
-            course_id=course_id,
-            include_expired=include_expired
-        )
+    cache_key = u'enrollment.course.details.{course_id}.{include_expired}'.format(
+        course_id=course_id,
+        include_expired=include_expired
+    )
 
     cached_enrollment_data = None
     try:
@@ -308,8 +308,7 @@ def get_course_enrollment_details(course_id, include_expired=False):
                  course_id)
         return cached_enrollment_data
 
-    course_enrollment_details = \
-        _data_api().get_course_enrollment_info(course_id, include_expired)
+    course_enrollment_details = _data_api().get_course_enrollment_info(course_id, include_expired)
 
     try:
         cache_time_out = getattr(settings,
