@@ -3,7 +3,6 @@ This file contains tasks that are designed to perform background operations on t
 running state of a course.
 
 """
-import base64
 import json
 from collections import OrderedDict
 from datetime import datetime
@@ -24,7 +23,6 @@ from pytz import UTC
 from StringIO import StringIO
 from edxmako.shortcuts import render_to_string
 from instructor.paidcourse_enrollment_report import PaidCourseEnrollmentReportProvider
-from microsite_configuration import microsite
 from shoppingcart.models import (
     PaidCourseRegistration, CourseRegCodeItem, InvoiceTransaction,
     Invoice, CouponRedemption, RegistrationCodeRedemption, CourseRegistrationCode
