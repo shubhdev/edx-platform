@@ -95,6 +95,7 @@ class CoursewareSearchTest(UniqueCourseTest):
         subsection.expand_subsection()
         unit = subsection.unit_at(0)
         unit.publish()
+        self.course_outline.wait_for_ajax()
 
     def _studio_edit_chapter_name(self, section_index):
         """
