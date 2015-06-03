@@ -29,7 +29,9 @@ def dark_parse_accept_lang_header(accept):
     day edX uses django 1.7 or higher, this function can be modified to support the old
     language codes until there are no browsers use them.
     '''
+    print 'accept is:', accept
     browser_langs = parse_accept_lang_header(accept)
+    print 'browser langs are: {}'.format(browser_langs)
     django_langs = []
     for lang, priority in browser_langs:
         lang = CHINESE_LANGUAGE_CODE_MAP.get(lang.lower(), lang)
@@ -76,6 +78,7 @@ class DarkLangMiddleware(object):
         Prevent user from requesting un-released languages except by using the preview-lang query string.
         """
         if not DarkLangConfig.current().enabled:
+            print "Dark lang config not enabled"
             return
 
         self._clean_accept_headers(request)
@@ -85,6 +88,7 @@ class DarkLangMiddleware(object):
         """
         ``True`` iff one of the values in ``self.released_langs`` is a prefix of ``lang_code``.
         """
+        print "_is_released: Checking if {} starts with any of: {}".format(lang_code.lower(), self.released_langs)
         return any(lang_code.lower().startswith(released_lang.lower()) for released_lang in self.released_langs)
 
     def _format_accept_value(self, lang, priority=1.0):
@@ -102,6 +106,7 @@ class DarkLangMiddleware(object):
         if accept is None or accept == '*':
             return
 
+        print "Getting new acceptance headers"
         new_accept = ", ".join(
             self._format_accept_value(lang, priority)
             for lang, priority
@@ -109,7 +114,9 @@ class DarkLangMiddleware(object):
             if self._is_released(lang)
         )
 
+        print 'setting meta accept to:', new_accept
         request.META['HTTP_ACCEPT_LANGUAGE'] = new_accept
+        print request.META['HTTP_ACCEPT_LANGUAGE']
 
     def _activate_preview_language(self, request):
         """
