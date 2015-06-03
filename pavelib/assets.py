@@ -16,11 +16,10 @@ from .utils.cmd import cmd, django_cmd
 
 COFFEE_DIRS = ['lms', 'cms', 'common']
 SASS_LOAD_PATHS = ['./common/static/sass']
-<<<<<<< HEAD
-SASS_UPDATE_DIRS = ['*/static']
-=======
-SASS_UPDATE_DIRS = ['lms/static/sass', 'cms/static/sass', 'common/static/sass']
->>>>>>> Start of a comprehensive theming system
+SASS_UPDATE_DIRS = [
+    'lms/static/sass', 'cms/static/sass', 'common/static/sass',
+    'common/static',
+]
 SASS_CACHE_PATH = '/tmp/sass-cache'
 
 
