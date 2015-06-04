@@ -96,7 +96,6 @@ fixture_paths:
     - js/fixtures/edxnotes
     - js/fixtures/search
     - templates/search
-    - teams/templates
     - templates/discovery
 
 requirejs:
