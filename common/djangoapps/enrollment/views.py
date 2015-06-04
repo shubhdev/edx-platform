@@ -421,7 +421,11 @@ class EnrollmentListView(APIView, ApiKeyPermissionMixIn):
                 )
 
             enrollment = api.get_enrollment(username, unicode(course_id))
-            if has_api_key_permissions and enrollment and enrollment['mode'] != mode:
+            if (
+                    has_api_key_permissions and
+                    enrollment and
+                    (enrollment['mode'] != mode or enrollment['is_active'] != is_active)
+            ):
                 response = api.update_enrollment(username, unicode(course_id), mode=mode, is_active=is_active)
             else:
                 # Will reactivate inactive enrollments.

@@ -91,11 +91,11 @@ class EnrollmentTestMixin(object):
 
         return response
 
-    def assert_enrollment_activation(self, expected_activation, expected_mode=CourseMode.VERIFIED):
+    def assert_enrollment_activation(self, expected_activation, expected_mode):
         """Change an enrollment's activation and verify its activation and mode are as expected."""
         self.assert_enrollment_status(
             as_server=True,
-            mode=None,
+            mode=expected_mode,
             is_active=expected_activation,
             expected_status=status.HTTP_200_OK
         )
