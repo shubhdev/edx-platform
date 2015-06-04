@@ -38,7 +38,6 @@
 
                            return _.extend(viewObj, {tabEl: tabEl});
                        });
-                       Backbone.history.start();
                        this.setActiveTab(0);
                    },
 
