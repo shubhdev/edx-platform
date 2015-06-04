@@ -1,0 +1,27 @@
+<%namespace name='static' file='/static_content.html'/>
+<html>
+<head><title>Fake Page to Update the minimum grade course requirement status</title>
+</head>
+<body>
+<p>Fake Credit Eligibility
+<div>
+% if error:
+    <div style="padding-top: 5px;color: red">${ error }</div>
+% endif
+%if status:
+    <div style="padding-top: 5px;color: green">Status added.</div>
+% endif
+
+<form id="course-checklists" class="course-checklists" method="post" action="">
+    Course ID:&nbsp;<input type="text" id="txt_coursekey" name="txt_coursekey">
+
+    <input type="hidden" name="csrfmiddlewaretoken" value="${ csrf_token }">
+    <div class="actions" style="padding-top: 20px">
+      <button class="action action-primary" type="submit">Save</button>
+    </div>
+</form>
+</div>
+
+
+</body>
+</html>
