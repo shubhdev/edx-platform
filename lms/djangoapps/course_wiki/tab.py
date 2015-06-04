@@ -6,18 +6,19 @@ a user has on an article.
 from django.conf import settings
 from django.utils.translation import ugettext as _
 
-from courseware.tabs import EnrolledCourseViewType
+from courseware.tabs import EnrolledTab
 
 
-class WikiCourseViewType(EnrolledCourseViewType):
+class WikiTab(EnrolledTab):
     """
     Defines the Wiki view type that is shown as a course tab.
     """
 
-    name = "wiki"
+    type = "wiki"
     title = _('Wiki')
     view_name = "course_wiki"
     is_hideable = True
+    allow_multiple = True
 
     @classmethod
     def is_enabled(cls, course, user=None):
@@ -28,4 +29,4 @@ class WikiCourseViewType(EnrolledCourseViewType):
             return False
         if course.allow_public_wiki_access:
             return True
-        return super(WikiCourseViewType, cls).is_enabled(course, user=user)
+        return super(WikiTab, cls).is_enabled(course, user=user)

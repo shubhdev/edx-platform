@@ -5,13 +5,13 @@ from unittest import TestCase
 
 import xmodule.tabs as xmodule_tabs
 
-from openedx.core.djangoapps.course_views.course_views import CourseViewTypeManager
+from openedx.core.lib.course_tabs import CourseTabPluginManager
 
 
-class CourseViewTypeManagerTestCase(TestCase):
-    """Test cases for CourseViewTypeManager class"""
+class CourseTabPluginManagerTestCase(TestCase):
+    """Test cases for CourseTabPluginManager class"""
 
-    @patch('openedx.core.djangoapps.course_views.course_views.CourseViewTypeManager.get_available_plugins')
+    @patch('openedx.core.lib.course_tabs.CourseTabPluginManager.get_available_plugins')
     def test_get_course_view_types(self, get_available_plugins):
         """
         Verify that get_course_view_types sorts appropriately
@@ -32,7 +32,7 @@ class CourseViewTypeManagerTestCase(TestCase):
         }
         get_available_plugins.return_value = mock_plugins
         self.assertEqual(
-            [plugin.name for plugin in CourseViewTypeManager.get_course_view_types()],
+            [plugin.name for plugin in CourseTabPluginManager.get_tab_types()],
             ["First", "Second", "Third", "Duplicate", "Duplicate", "Last"]
         )
 
