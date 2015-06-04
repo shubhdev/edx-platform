@@ -295,7 +295,7 @@ def _update_certificate_context(context, course, user, user_certificate):
     context['accomplishment_copy_username'] = user.username
     context['accomplishment_copy_course_org'] = course.org
     context['accomplishment_copy_course_name'] = course.display_name
-    context['logo_alt'] = platform_name
+    context['logo_alt'] = 'Home'
     try:
         badge = BadgeAssertion.objects.get(user=user, course_id=course.location.course_key)
     except BadgeAssertion.DoesNotExist:
@@ -398,7 +398,7 @@ def _update_certificate_context(context, course, user, user_certificate):
         platform_name=platform_name
     )
 
-    context['logo_subtitle'] = _("Certificate Validation")
+    context['logo_subtitle'] = _("Certificate")
 
     # Translators:  This is the copyright line which appears at the bottom of the certificate page/screen
     context['copyright_text'] = _('&copy; {year} {platform_name}. All rights reserved.').format(

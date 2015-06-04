@@ -549,11 +549,11 @@ class CertificateHtmlViewConfiguration(ConfigurationModel):
             "default": {
                 "url": "http://www.edx.org",
                 "logo_src": "http://www.edx.org/static/images/logo.png",
-                "logo_alt": "Valid Certificate"
+                "logo_alt": "Home"
             },
             "honor": {
                 "logo_src": "http://www.edx.org/static/images/honor-logo.png",
-                "logo_alt": "Honor Certificate"
+                "logo_alt": "Home"
             }
         }
     """
