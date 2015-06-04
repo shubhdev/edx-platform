@@ -15,16 +15,15 @@ from .utils.cmd import cmd, django_cmd
 # setup baseline paths
 
 COFFEE_DIRS = ['lms', 'cms', 'common']
+SASS_DIRS = {
+    "lms/static/sass": "lms/static/css",
+    "cms/static/sass": "cms/static/css",
+    "common/static/sass": "common/static/css",
+    "common/static": None,
+}
 SASS_LOAD_PATHS = ['./common/static/sass']
-SASS_UPDATE_DIRS = [
-    'lms/static/sass', 'cms/static/sass', 'common/static/sass',
-    'common/static',
-]
 SASS_CACHE_PATH = '/tmp/sass-cache'
 
-
-THEME_COFFEE_PATHS = []
-THEME_SASS_PATHS = {}
 
 edxapp_env = Env()
 
@@ -32,8 +31,8 @@ if edxapp_env.feature_flags.get('USE_CUSTOM_THEME', False):
     theme_name = edxapp_env.env_tokens.get('THEME_NAME', '')
     parent_dir = path(edxapp_env.REPO_ROOT).abspath().parent
     theme_root = parent_dir / "themes" / theme_name
-    THEME_COFFEE_PATHS = [theme_root]
-    THEME_SASS_PATHS = [theme_root / "static" / "sass"]
+    COFFEE_DIRS.append(theme_root)
+    SASS_DIRS[theme_root / "static" / "sass"] = None
 
 if edxapp_env.env_tokens.get("THEME_DIR", False):
     theme_dir = path(edxapp_env.env_tokens["THEME_DIR"])
@@ -41,12 +40,12 @@ if edxapp_env.env_tokens.get("THEME_DIR", False):
     lms_css = theme_dir / "lms" / "static" / "css"
     if lms_sass.isdir():
         lms_css.mkdir_p()
-        THEME_SASS_PATHS[lms_sass] = lms_css
+        SASS_DIRS[lms_sass] = lms_css
     studio_sass = theme_dir / "studio" / "static" / "sass"
     studio_css = theme_dir / "studio" / "static" / "css"
     if studio_sass.isdir():
         studio_css.mkdir_p()
-        THEME_SASS_PATHS[studio_sass] = studio_css
+        SASS_DIRS[studio_sass] = studio_css
 
 
 class CoffeeScriptWatcher(PatternMatchingEventHandler):
@@ -86,7 +85,7 @@ class SassWatcher(PatternMatchingEventHandler):
         """
         register files with observer
         """
-        for dirname in SASS_LOAD_PATHS + SASS_UPDATE_DIRS + THEME_SASS_PATHS.keys():
+        for dirname in SASS_LOAD_PATHS + SASS_DIRS.keys():
             paths = []
             if '*' in dirname:
                 paths.extend(glob.glob(dirname))
@@ -128,7 +127,7 @@ def coffeescript_files():
     """
     return find command for paths containing coffee files
     """
-    dirs = " ".join(THEME_COFFEE_PATHS + [Env.REPO_ROOT / coffee_dir for coffee_dir in COFFEE_DIRS])
+    dirs = " ".join(Env.REPO_ROOT / coffee_dir for coffee_dir in COFFEE_DIRS)
     return cmd('find', dirs, '-type f', '-name \"*.coffee\"')
 
 
@@ -152,7 +151,7 @@ def compile_sass(debug=False):
     Compile Sass to CSS.
     """
     sass_pairs = []
-    for sass_dir, css_dir in THEME_SASS_PATHS.items():
+    for sass_dir, css_dir in SASS_DIRS.items():
         if css_dir:
             sass_pairs.append("{sass}:{css}".format(sass=sass_dir, css=css_dir))
         else:
@@ -161,8 +160,8 @@ def compile_sass(debug=False):
         'sass', '' if debug else '--style compressed',
         "--sourcemap" if debug else '',
         "--cache-location {cache}".format(cache=SASS_CACHE_PATH),
-        "--load-path", " ".join(SASS_LOAD_PATHS + THEME_SASS_PATHS.keys()),
-        "--update", "-E", "utf-8", " ".join(SASS_UPDATE_DIRS + sass_pairs),
+        "--load-path", " ".join(SASS_LOAD_PATHS + SASS_DIRS.keys()),
+        "--update", "-E", "utf-8", " ".join(sass_pairs),
     ))
 
 
