@@ -500,6 +500,11 @@ class UserStateCache(object):
             student_module.max_grade = max_score
             student_module.save()
 
+
+    @contract(username="basestring", block_key=UsageKey)
+    def get_history(self, username, block_key):
+        return self._cache.get_history(username, block_key)
+
     def __len__(self):
         return len(self._cache)
 

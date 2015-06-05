@@ -13,7 +13,7 @@ except ImportError:
 
 from xblock.fields import Scope, ScopeBase
 from xblock_user_state.interface import XBlockUserStateClient
-from courseware.models import StudentModule
+from courseware.models import StudentModule, StudentModuleHistory
 from contracts import contract, new_contract
 from opaque_keys.edx.keys import UsageKey
 
@@ -303,12 +303,35 @@ class DjangoXBlockUserStateClient(XBlockUserStateClient):
             for field in json.loads(student_module.state):
                 yield (usage_key, field, student_module.modified)
 
+    @contract(username="basestring", block_key=UsageKey, scope=ScopeBase)
     def get_history(self, username, block_key, scope=Scope.user_state):
-        """We don't guarantee that history for many blocks will be fast."""
+        """
+        Retrieve history of state changes for a given block for a given
+        student.  We don't guarantee that history for many blocks will be fast.
+
+        Arguments:
+            username: The name of the user whose history should be retrieved
+            block_key (UsageKey): The UsageKey identifying which xblock state to update.
+            scope (Scope): The scope to load data from
+        """
+
         assert self.user.username == username
         if scope != Scope.user_state:
             raise ValueError("Only Scope.user_state is supported")
-        raise NotImplementedError()
+        student_modules = self._get_student_modules(username, [block_key])
+        if len(student_modules) == 0:
+            raise self.DoesNotExist()
+
+        history_entries = StudentModuleHistory.objects.filter(
+                student_module=student_modules[0]).order_by('-id')
+
+        # If no history records exist, let's force a save to get history started.
+        if not history_entries:
+            student_module.save()
+            history_entries = StudentModuleHistory.objects.filter(
+                    student_module=student_modules[0]).order_by('-id')
+
+        return history_entries
 
     def iter_all_for_block(self, block_key, scope=Scope.user_state, batch_size=None):
         """
