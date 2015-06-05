@@ -8,28 +8,22 @@ import urllib
 from django.core.urlresolvers import reverse
 from rest_framework.test import APIClient
 
-from student.tests.factories import UserFactory
 from xmodule.modulestore import ModuleStoreEnum
-from xmodule.modulestore.tests.django_utils import ModuleStoreTestCase
-from xmodule.modulestore.tests.factories import CourseFactory, ItemFactory
 
-from .factories import BookmarkFactory
+from .test_models import BookmarksTestsBase
+
 
 # pylint: disable=no-member
-
-
-class BookmarksViewTestsMixin(ModuleStoreTestCase):
+class BookmarksViewsTestsBase(BookmarksTestsBase):
     """
-    Mixin for bookmarks views tests.
+    Base class for bookmarks views tests.
     """
-    test_password = 'test'
+    STORE_TYPE = ModuleStoreEnum.Type.split
 
     def setUp(self):
-        super(BookmarksViewTestsMixin, self).setUp()
+        super(BookmarksViewsTestsBase, self).setUp()
 
         self.anonymous_client = APIClient()
-        self.user = UserFactory.create(password=self.test_password)
-        self.create_test_data()
         self.client = self.login_client(user=self.user)
 
     def login_client(self, user):
@@ -37,105 +31,8 @@ class BookmarksViewTestsMixin(ModuleStoreTestCase):
         Helper method for getting the client and user and logging in. Returns client.
         """
         client = APIClient()
-        client.login(username=user.username, password=self.test_password)
+        client.login(username=user.username, password=self.TEST_PASSWORD)
         return client
-
-    def create_test_data(self):
-        """
-        Creates the bookmarks test data.
-        """
-        with self.store.default_store(ModuleStoreEnum.Type.split):
-
-            self.course = CourseFactory.create()
-            self.course_id = unicode(self.course.id)
-
-            chapter_1 = ItemFactory.create(
-                parent_location=self.course.location, category='chapter', display_name='Week 1'
-            )
-            sequential_1 = ItemFactory.create(
-                parent_location=chapter_1.location, category='sequential', display_name='Lesson 1'
-            )
-            self.vertical_1 = ItemFactory.create(
-                parent_location=sequential_1.location, category='vertical', display_name='Subsection 1'
-            )
-            self.bookmark_1 = BookmarkFactory.create(
-                user=self.user,
-                course_key=self.course_id,
-                usage_key=self.vertical_1.location,
-                display_name=self.vertical_1.display_name
-            )
-            chapter_2 = ItemFactory.create(
-                parent_location=self.course.location, category='chapter', display_name='Week 2'
-            )
-            sequential_2 = ItemFactory.create(
-                parent_location=chapter_2.location, category='sequential', display_name='Lesson 2'
-            )
-            vertical_2 = ItemFactory.create(
-                parent_location=sequential_2.location, category='vertical', display_name='Subsection 2'
-            )
-            self.vertical_3 = ItemFactory.create(
-                parent_location=sequential_2.location, category='vertical', display_name='Subsection 3'
-            )
-            self.bookmark_2 = BookmarkFactory.create(
-                user=self.user,
-                course_key=self.course_id,
-                usage_key=vertical_2.location,
-                display_name=vertical_2.display_name
-            )
-
-        # Other Course
-        self.other_course = CourseFactory.create(display_name='An Introduction to API Testing 2')
-        other_chapter = ItemFactory.create(
-            parent_location=self.other_course.location, category='chapter', display_name='Other Week 1'
-        )
-        other_sequential = ItemFactory.create(
-            parent_location=other_chapter.location, category='sequential', display_name='Other Lesson 1'
-        )
-        self.other_vertical = ItemFactory.create(
-            parent_location=other_sequential.location, category='vertical', display_name='Other Subsection 1'
-        )
-        self.other_bookmark = BookmarkFactory.create(
-            user=self.user,
-            course_key=unicode(self.other_course.id),
-            usage_key=self.other_vertical.location,
-            xblock_cache__display_name=self.other_vertical.display_name
-        )
-
-    def create_course_with_bookmarks_count(self, count):
-        """
-        Create a course, add some content and add bookmarks.
-        """
-
-        with self.store.default_store(ModuleStoreEnum.Type.split):
-
-            course = CourseFactory.create()
-
-            blocks = [ItemFactory.create(
-                parent_location=course.location, category='chapter'
-            ) for __ in range(count)]
-
-            bookmarks = [BookmarkFactory.create(
-                user=self.user,
-                course_key=course.id,
-                usage_key=block.location,
-                xblock_cache__display_name=block.display_name
-            ) for block in blocks]
-
-        return course, blocks, bookmarks
-
-    def assert_valid_bookmark_response(self, response_data, bookmark, optional_fields=False):
-        """
-        Determines if the given response data (dict) matches the specified bookmark.
-        """
-        self.assertEqual(response_data['id'], '%s,%s' % (self.user.username, unicode(bookmark.usage_key)))
-        self.assertEqual(response_data['course_id'], unicode(bookmark.course_key))
-        self.assertEqual(response_data['usage_id'], unicode(bookmark.usage_key))
-        self.assertEqual(response_data['block_type'], unicode(bookmark.usage_key.block_type))
-        self.assertIsNotNone(response_data['created'])
-
-        if optional_fields:
-            self.assertEqual(response_data['display_name'], bookmark.display_name)
-            self.assertEqual(response_data['path'], bookmark.path)
 
     def send_get(self, client, url, query_parameters=None, expected_status=200):
         """
@@ -164,7 +61,7 @@ class BookmarksViewTestsMixin(ModuleStoreTestCase):
 
 
 @ddt.ddt
-class BookmarksListViewTests(BookmarksViewTestsMixin):
+class BookmarksListViewTests(BookmarksViewsTestsBase):
     """
     This contains the tests for GET & POST methods of bookmark.views.BookmarksListView class
     GET /api/bookmarks/v0/bookmarks/?course_id={course_id1}
@@ -185,7 +82,9 @@ class BookmarksListViewTests(BookmarksViewTestsMixin):
         expected order without optional fields.
         """
 
-        course, __, bookmarks_data = self.create_course_with_bookmarks_count(bookmarks_count)
+        course, __, bookmarks = self.create_course_with_bookmarks_count(
+            bookmarks_count, store_type=ModuleStoreEnum.Type.mongo
+        )
 
         query_parameters = 'course_id={}&page_size={}'.format(urllib.quote(unicode(course.id)), 100)
         if check_all_fields:
@@ -198,15 +97,15 @@ class BookmarksListViewTests(BookmarksViewTestsMixin):
                 query_parameters=query_parameters,
             )
 
-        bookmarks = response.data['results']
+        bookmarks_data = response.data['results']
 
-        self.assertEqual(len(bookmarks), len(bookmarks_data))
-        self.assertEqual(response.data['count'], len(bookmarks_data))
+        self.assertEqual(len(bookmarks_data), len(bookmarks))
+        self.assertEqual(response.data['count'], len(bookmarks))
         self.assertEqual(response.data['num_pages'], 1)
 
         # As bookmarks are sorted by -created so we will compare in that order.
-        self.assert_valid_bookmark_response(bookmarks[0], bookmarks_data[-1], optional_fields=check_all_fields)
-        self.assert_valid_bookmark_response(bookmarks[-1], bookmarks_data[0], optional_fields=check_all_fields)
+        self.assert_bookmark_data_is_valid(bookmarks[-1], bookmarks_data[0], check_optional_fields=check_all_fields)
+        self.assert_bookmark_data_is_valid(bookmarks[0], bookmarks_data[-1], check_optional_fields=check_all_fields)
 
     @ddt.data(
         10, 100
@@ -216,7 +115,9 @@ class BookmarksListViewTests(BookmarksViewTestsMixin):
         Test that requesting bookmarks for a course return results with pagination 200 code.
         """
 
-        course, __, bookmarks_data = self.create_course_with_bookmarks_count(bookmarks_count)
+        course, __, bookmarks = self.create_course_with_bookmarks_count(
+            bookmarks_count, store_type=ModuleStoreEnum.Type.mongo
+        )
 
         page_size = 5
         query_parameters = 'course_id={}&page_size={}'.format(urllib.quote(unicode(course.id)), page_size)
@@ -228,15 +129,15 @@ class BookmarksListViewTests(BookmarksViewTestsMixin):
                 query_parameters=query_parameters
             )
 
-        bookmarks = response.data['results']
+        bookmarks_data = response.data['results']
 
         # Pagination assertions.
         self.assertEqual(response.data['count'], bookmarks_count)
         self.assertIn('page=2&page_size={}'.format(page_size), response.data['next'])
         self.assertEqual(response.data['num_pages'], bookmarks_count / page_size)
 
-        self.assertEqual(len(bookmarks), min(bookmarks_count, page_size))
-        self.assert_valid_bookmark_response(bookmarks[0], bookmarks_data[-1])
+        self.assertEqual(len(bookmarks_data), min(bookmarks_count, page_size))
+        self.assert_bookmark_data_is_valid(bookmarks[-1], bookmarks_data[0])
 
     def test_get_bookmarks_with_invalid_data(self):
         """
@@ -249,8 +150,8 @@ class BookmarksListViewTests(BookmarksViewTestsMixin):
                 url=reverse('bookmarks'),
                 query_parameters='course_id=invalid'
             )
-        bookmarks = response.data['results']
-        self.assertEqual(len(bookmarks), 0)
+        bookmarks_data = response.data['results']
+        self.assertEqual(len(bookmarks_data), 0)
 
     def test_get_all_bookmarks_when_course_id_not_given(self):
         """
@@ -263,11 +164,11 @@ class BookmarksListViewTests(BookmarksViewTestsMixin):
                 client=self.client,
                 url=reverse('bookmarks')
             )
-        bookmarks = response.data['results']
-        self.assertEqual(len(bookmarks), 3)
-        self.assert_valid_bookmark_response(bookmarks[0], self.other_bookmark)
-        self.assert_valid_bookmark_response(bookmarks[1], self.bookmark_2)
-        self.assert_valid_bookmark_response(bookmarks[2], self.bookmark_1)
+        bookmarks_data = response.data['results']
+        self.assertEqual(len(bookmarks_data), 3)
+        self.assert_bookmark_data_is_valid(self.other_bookmark_1, bookmarks_data[0])
+        self.assert_bookmark_data_is_valid(self.bookmark_2, bookmarks_data[1])
+        self.assert_bookmark_data_is_valid(self.bookmark_1, bookmarks_data[2])
 
     def test_anonymous_access(self):
         """
@@ -373,13 +274,13 @@ class BookmarksListViewTests(BookmarksViewTestsMixin):
         """
         Test that DELETE and PUT are not supported.
         """
-        self.client.login(username=self.user.username, password=self.test_password)
+        self.client.login(username=self.user.username, password=self.TEST_PASSWORD)
         self.assertEqual(405, self.client.put(reverse('bookmarks')).status_code)
         self.assertEqual(405, self.client.delete(reverse('bookmarks')).status_code)
 
 
 @ddt.ddt
-class BookmarksDetailViewTests(BookmarksViewTestsMixin):
+class BookmarksDetailViewTests(BookmarksViewsTestsBase):
     """
     This contains the tests for GET & DELETE methods of bookmark.views.BookmarksDetailView class
     """
@@ -388,7 +289,7 @@ class BookmarksDetailViewTests(BookmarksViewTestsMixin):
         ('fields=path,display_name', True)
     )
     @ddt.unpack
-    def test_get_bookmark_successfully(self, query_params, check_optionals):
+    def test_get_bookmark_successfully(self, query_params, check_optional_fields):
         """
         Test that requesting bookmark returns data with 200 code.
         """
@@ -397,13 +298,13 @@ class BookmarksDetailViewTests(BookmarksViewTestsMixin):
                 client=self.client,
                 url=reverse(
                     'bookmarks_detail',
-                    kwargs={'username': self.user.username, 'usage_id': unicode(self.vertical_1.location)}
+                    kwargs={'username': self.user.username, 'usage_id': unicode(self.sequential_1.location)}
                 ),
                 query_parameters=query_params
             )
         data = response.data
         self.assertIsNotNone(data)
-        self.assert_valid_bookmark_response(data, self.bookmark_1, optional_fields=check_optionals)
+        self.assert_bookmark_data_is_valid(self.bookmark_1, data, check_optional_fields=check_optional_fields)
 
     def test_get_bookmark_that_belongs_to_other_user(self):
         """
@@ -481,22 +382,21 @@ class BookmarksDetailViewTests(BookmarksViewTestsMixin):
         """
         query_parameters = 'course_id={}'.format(urllib.quote(self.course_id))
         response = self.send_get(client=self.client, url=reverse('bookmarks'), query_parameters=query_parameters)
-        data = response.data
-        bookmarks = data['results']
-        self.assertEqual(len(bookmarks), 2)
+        bookmarks_data = response.data['results']
+        self.assertEqual(len(bookmarks_data), 2)
 
         with self.assertNumQueries(6):  # 1 query for bookmark table.
             self.send_delete(
                 client=self.client,
                 url=reverse(
                     'bookmarks_detail',
-                    kwargs={'username': self.user.username, 'usage_id': unicode(self.vertical_1.location)}
+                    kwargs={'username': self.user.username, 'usage_id': unicode(self.sequential_1.location)}
                 )
             )
         response = self.send_get(client=self.client, url=reverse('bookmarks'), query_parameters=query_parameters)
-        bookmarks = response.data['results']
+        bookmarks_data = response.data['results']
 
-        self.assertEqual(len(bookmarks), 1)
+        self.assertEqual(len(bookmarks_data), 1)
 
     def test_delete_bookmark_that_belongs_to_other_user(self):
         """
@@ -554,7 +454,7 @@ class BookmarksDetailViewTests(BookmarksViewTestsMixin):
         Test that POST and PUT are not supported.
         """
         url = reverse('bookmarks_detail', kwargs={'username': self.user.username, 'usage_id': 'i4x'})
-        self.client.login(username=self.user.username, password=self.test_password)
+        self.client.login(username=self.user.username, password=self.TEST_PASSWORD)
         with self.assertNumQueries(5):  # No queries for bookmark table.
             self.assertEqual(405, self.client.put(url).status_code)
 

@@ -6,20 +6,15 @@ import ddt
 from django.core.exceptions import ObjectDoesNotExist
 
 from opaque_keys.edx.keys import UsageKey
-
-from student.tests.factories import UserFactory
-
 from xmodule.modulestore.exceptions import ItemNotFoundError
-from xmodule.modulestore.tests.factories import CourseFactory, ItemFactory
-from xmodule.modulestore.tests.django_utils import ModuleStoreTestCase
 
-from .factories import BookmarkFactory
-from .. import api, DEFAULT_FIELDS, OPTIONAL_FIELDS
+from .. import api
 from ..models import Bookmark
+from .test_models import BookmarksTestsBase
 
 
 @ddt.ddt
-class BookmarksAPITests(ModuleStoreTestCase):
+class BookmarksAPITests(BookmarksTestsBase):
     """
     These tests cover the parts of the API methods.
     """
@@ -27,93 +22,29 @@ class BookmarksAPITests(ModuleStoreTestCase):
     def setUp(self):
         super(BookmarksAPITests, self).setUp()
 
-        self.user = UserFactory.create(password='test')
-        self.other_user = UserFactory.create(password='test')
-
-        self.course = CourseFactory.create(display_name='An Introduction to API Testing')
-        self.course_id = unicode(self.course.id)
-
-        self.chapter = ItemFactory.create(
-            parent_location=self.course.location, category='chapter', display_name='Week 1'
-        )
-        self.sequential = ItemFactory.create(
-            parent_location=self.chapter.location, category='sequential', display_name='Lesson 1'
-        )
-        self.vertical = ItemFactory.create(
-            parent_location=self.sequential.location, category='vertical', display_name='Subsection 1'
-        )
-        self.vertical_1 = ItemFactory.create(
-            parent_location=self.sequential.location, category='vertical', display_name='Subsection 1.1'
-        )
-        self.bookmark = BookmarkFactory.create(
-            user=self.user,
-            course_key=self.course_id,
-            usage_key=self.vertical.location,
-            xblock_cache__display_name=self.vertical.display_name
-        )
-
-        self.course_2 = CourseFactory.create(display_name='An Introduction to API Testing 2')
-        self.chapter_2 = ItemFactory.create(
-            parent_location=self.course_2.location, category='chapter', display_name='Week 2'
-        )
-        self.sequential_2 = ItemFactory.create(
-            parent_location=self.chapter_2.location, category='sequential', display_name='Lesson 2'
-        )
-        self.vertical_2 = ItemFactory.create(
-            parent_location=self.sequential_2.location, category='vertical', display_name='Subsection 2'
-        )
-
-        self.bookmark_2 = BookmarkFactory.create(
-            user=self.user,
-            course_key=self.course_2.id,
-            usage_key=self.sequential_2.location,
-            xblock_cache__display_name=self.sequential_2.display_name
-        )
-        self.bookmark_3 = BookmarkFactory.create(
-            user=self.user,
-            course_key=self.course_2.id,
-            usage_key=self.vertical_2.location,
-            xblock_cache__display_name=self.vertical_2.display_name
-        )
-
-        self.all_fields = DEFAULT_FIELDS + OPTIONAL_FIELDS
-
-    def assert_bookmark_response(self, response_data, bookmark, optional_fields=False):
-        """
-        Determines if the given response data (dict) matches the given bookmark.
-        """
-        self.assertEqual(response_data['id'], '%s,%s' % (self.user.username, unicode(bookmark.usage_key)))
-        self.assertEqual(response_data['course_id'], unicode(bookmark.course_key))
-        self.assertEqual(response_data['usage_id'], unicode(bookmark.usage_key))
-        self.assertEqual(response_data['block_type'], unicode(bookmark.usage_key.block_type))
-        self.assertIsNotNone(response_data['created'])
-
-        if optional_fields:
-            self.assertEqual(response_data['display_name'], bookmark.display_name)
-            self.assertEqual(response_data['path'], bookmark.path)
-
     def test_get_bookmark(self):
         """
         Verifies that get_bookmark returns data as expected.
         """
-        bookmark_data = api.get_bookmark(user=self.user, usage_key=self.vertical.location)
-        self.assert_bookmark_response(bookmark_data, self.bookmark)
+        bookmark_data = api.get_bookmark(user=self.user, usage_key=self.sequential_1.location)
+        self.assert_bookmark_data_is_valid(self.bookmark_1, bookmark_data)
 
         # With Optional fields.
         with self.assertNumQueries(1):
             bookmark_data = api.get_bookmark(
                 user=self.user,
-                usage_key=self.vertical.location,
-                fields=self.all_fields
+                usage_key=self.sequential_1.location,
+                fields=self.ALL_FIELDS
             )
-        self.assert_bookmark_response(bookmark_data, self.bookmark, optional_fields=True)
+        self.assert_bookmark_data_is_valid(self.bookmark_1, bookmark_data, check_optional_fields=True)
 
     def test_get_bookmark_raises_error(self):
         """
         Verifies that get_bookmark raises error as expected.
         """
-        with self.assertRaises(ObjectDoesNotExist):
-            api.get_bookmark(user=self.other_user, usage_key=self.vertical.location)
+        with self.assertNumQueries(1):
+            with self.assertRaises(ObjectDoesNotExist):
+                api.get_bookmark(user=self.other_user, usage_key=self.vertical_1.location)
 
     @ddt.data(
         1, 10, 100
@@ -122,83 +53,79 @@ class BookmarksAPITests(ModuleStoreTestCase):
         """
         Verifies that get_bookmarks returns data as expected.
         """
-
-        blocks = [ItemFactory.create(
-            parent_location=self.course.location, category='chapter'
-        ) for __ in range(count)]
-
-        bookmarks = [BookmarkFactory.create(
-            user=self.user,
-            course_key=self.course.id,
-            usage_key=block.location,
-            xblock_cache__display_name=block.display_name
-        ) for block in blocks]
+        course, __, bookmarks = self.create_course_with_bookmarks_count(count)
 
         # Without course key.
         with self.assertNumQueries(1):
             bookmarks_data = api.get_bookmarks(user=self.user)
             self.assertEqual(len(bookmarks_data), count + 3)
         # Assert them in ordered manner.
-        self.assert_bookmark_response(bookmarks_data[0], bookmarks[-1])
-        self.assert_bookmark_response(bookmarks_data[-1], self.bookmark)
-        self.assert_bookmark_response(bookmarks_data[-2], self.bookmark_2)
+        self.assert_bookmark_data_is_valid(bookmarks[-1], bookmarks_data[0])
+        self.assert_bookmark_data_is_valid(self.bookmark_1, bookmarks_data[-1])
+        self.assert_bookmark_data_is_valid(self.bookmark_2, bookmarks_data[-2])
 
         # Without course key, with optional fields.
         with self.assertNumQueries(1):
-            bookmarks_data = api.get_bookmarks(user=self.user, fields=self.all_fields)
+            bookmarks_data = api.get_bookmarks(user=self.user, fields=self.ALL_FIELDS)
             self.assertEqual(len(bookmarks_data), count + 3)
-        self.assert_bookmark_response(bookmarks_data[0], bookmarks[-1])
-        self.assert_bookmark_response(bookmarks_data[-1], self.bookmark)
+        self.assert_bookmark_data_is_valid(bookmarks[-1], bookmarks_data[0])
+        self.assert_bookmark_data_is_valid(self.bookmark_1, bookmarks_data[-1])
 
         # With course key.
         with self.assertNumQueries(1):
-            bookmarks_data = api.get_bookmarks(user=self.user, course_key=self.course.id)
-            self.assertEqual(len(bookmarks_data), count + 1)
-        self.assert_bookmark_response(bookmarks_data[0], bookmarks[-1])
-        self.assert_bookmark_response(bookmarks_data[-1], self.bookmark)
+            bookmarks_data = api.get_bookmarks(user=self.user, course_key=course.id)
+            self.assertEqual(len(bookmarks_data), count)
+        self.assert_bookmark_data_is_valid(bookmarks[-1], bookmarks_data[0])
+        self.assert_bookmark_data_is_valid(bookmarks[0], bookmarks_data[-1])
 
         # With course key, with optional fields.
         with self.assertNumQueries(1):
-            bookmarks_data = api.get_bookmarks(user=self.user, course_key=self.course.id, fields=self.all_fields)
-            self.assertEqual(len(bookmarks_data), count + 1)
-        self.assert_bookmark_response(bookmarks_data[0], bookmarks[-1])
-        self.assert_bookmark_response(bookmarks_data[-1], self.bookmark)
+            bookmarks_data = api.get_bookmarks(user=self.user, course_key=course.id, fields=self.ALL_FIELDS)
+            self.assertEqual(len(bookmarks_data), count)
+        self.assert_bookmark_data_is_valid(bookmarks[-1], bookmarks_data[0])
+        self.assert_bookmark_data_is_valid(bookmarks[0], bookmarks_data[-1])
 
         # Without Serialized.
         with self.assertNumQueries(1):
-            bookmarks = api.get_bookmarks(user=self.user, course_key=self.course.id, serialized=False)
-            self.assertEqual(len(bookmarks), count + 1)
+            bookmarks = api.get_bookmarks(user=self.user, course_key=course.id, serialized=False)
+            self.assertEqual(len(bookmarks), count)
         self.assertTrue(bookmarks.model is Bookmark)  # pylint: disable=no-member
 
     def test_create_bookmark(self):
         """
         Verifies that create_bookmark create & returns data as expected.
         """
-        self.assertEqual(len(api.get_bookmarks(user=self.user, course_key=self.course.id)), 1)
-
-        api.create_bookmark(user=self.user, usage_key=self.vertical_1.location)
-
         self.assertEqual(len(api.get_bookmarks(user=self.user, course_key=self.course.id)), 2)
+
+        with self.assertNumQueries(4):
+            api.create_bookmark(user=self.user, usage_key=self.vertical_2.location)
+
+        self.assertEqual(len(api.get_bookmarks(user=self.user, course_key=self.course.id)), 3)
 
     def test_create_bookmark_do_not_create_duplicates(self):
         """
         Verifies that create_bookmark do not create duplicate bookmarks.
         """
-        self.assertEqual(len(api.get_bookmarks(user=self.user, course_key=self.course.id)), 1)
-        bookmark_data = api.create_bookmark(user=self.user, usage_key=self.vertical_1.location)
-
         self.assertEqual(len(api.get_bookmarks(user=self.user, course_key=self.course.id)), 2)
 
-        bookmark_data_2 = api.create_bookmark(user=self.user, usage_key=self.vertical_1.location)
-        self.assertEqual(len(api.get_bookmarks(user=self.user, course_key=self.course.id)), 2)
+        with self.assertNumQueries(4):
+            bookmark_data = api.create_bookmark(user=self.user, usage_key=self.vertical_2.location)
+
+        self.assertEqual(len(api.get_bookmarks(user=self.user, course_key=self.course.id)), 3)
+
+        with self.assertNumQueries(4):
+            bookmark_data_2 = api.create_bookmark(user=self.user, usage_key=self.vertical_2.location)
+
+        self.assertEqual(len(api.get_bookmarks(user=self.user, course_key=self.course.id)), 3)
         self.assertEqual(bookmark_data, bookmark_data_2)
 
     def test_create_bookmark_raises_error(self):
         """
         Verifies that create_bookmark raises error as expected.
         """
-        with self.assertRaises(ItemNotFoundError):
-            api.create_bookmark(user=self.user, usage_key=UsageKey.from_string('i4x://brb/100/html/340ef1771a0940'))
+        with self.assertNumQueries(0):
+            with self.assertRaises(ItemNotFoundError):
+                api.create_bookmark(user=self.user, usage_key=UsageKey.from_string('i4x://brb/100/html/340ef1771a0940'))
 
     def test_delete_bookmark(self):
         """
@@ -206,16 +133,18 @@ class BookmarksAPITests(ModuleStoreTestCase):
         """
         self.assertEqual(len(api.get_bookmarks(user=self.user)), 3)
 
-        api.delete_bookmark(user=self.user, usage_key=self.vertical.location)
+        with self.assertNumQueries(2):
+            api.delete_bookmark(user=self.user, usage_key=self.sequential_1.location)
 
         bookmarks_data = api.get_bookmarks(user=self.user)
         self.assertEqual(len(bookmarks_data), 2)
-        self.assertNotEqual(unicode(self.vertical.location), bookmarks_data[0]['usage_id'])
-        self.assertNotEqual(unicode(self.vertical.location), bookmarks_data[1]['usage_id'])
+        self.assertNotEqual(unicode(self.sequential_1.location), bookmarks_data[0]['usage_id'])
+        self.assertNotEqual(unicode(self.sequential_1.location), bookmarks_data[1]['usage_id'])
 
     def test_delete_bookmark_raises_error(self):
         """
         Verifies that delete_bookmark raises error as expected.
         """
-        with self.assertRaises(ObjectDoesNotExist):
-            api.delete_bookmark(user=self.other_user, usage_key=self.vertical.location)
+        with self.assertNumQueries(1):
+            with self.assertRaises(ObjectDoesNotExist):
+                api.delete_bookmark(user=self.other_user, usage_key=self.vertical_1.location)
