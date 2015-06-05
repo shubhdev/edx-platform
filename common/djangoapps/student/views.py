@@ -524,7 +524,7 @@ def dashboard(request):
     )
 
     # Retrieve the course modes for each course
-    enrolled_courses_dict = dict()
+    enrolled_courses_dict = {}
     for course, __ in course_enrollment_pairs:
         enrolled_courses_dict[unicode(course.id)] = course
 
