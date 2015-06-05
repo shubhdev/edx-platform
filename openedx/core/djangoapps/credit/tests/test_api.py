@@ -45,11 +45,9 @@ class CreditApiTestBase(TestCase):
     def add_credit_course(self, enabled=True):
         """Mark the course as a credit """
         credit_course = CreditCourse.objects.create(course_key=self.course_key, enabled=enabled)
-        credit_course.save()
 
         # Associate a credit provider with the course.
-        credit_provider = CreditProvider(provider_id=self.PROVIDER_ID, display_name=self.PROVIDER_NAME)
-        credit_provider.save()
+        credit_provider = CreditProvider.objects.create(provider_id=self.PROVIDER_ID, display_name=self.PROVIDER_NAME)
         credit_course.providers.add(credit_provider)
 
         return credit_course
@@ -92,6 +90,8 @@ class CreditRequirementApiTests(CreditApiTestBase):
             api.set_credit_requirements(self.course_key, requirements)
 
     def test_set_credit_requirements_invalid_course(self):
+        # Test that 'InvalidCreditCourse' exception is raise if we try to
+        # set credit requirements for a non credit course.
         requirements = [
             {
                 "namespace": "grade",
@@ -108,6 +108,7 @@ class CreditRequirementApiTests(CreditApiTestBase):
             api.set_credit_requirements(self.course_key, requirements)
 
     def test_set_get_credit_requirements(self):
+        # Test that if same requirement is added multiple times
         self.add_credit_course()
         requirements = [
             {
@@ -129,6 +130,36 @@ class CreditRequirementApiTests(CreditApiTestBase):
         ]
         api.set_credit_requirements(self.course_key, requirements)
         self.assertEqual(len(api.get_credit_requirements(self.course_key)), 1)
+
+    def test_disable_existing_requirement(self):
+        self.add_credit_course()
+
+        # Set initial requirements
+        requirements = [
+            {
+                "namespace": "reverification",
+                "name": "midterm",
+                "display_name": "Midterm",
+                "criteria": {}
+            },
+            {
+                "namespace": "grade",
+                "name": "grade",
+                "display_name": "Grade",
+                "criteria": {
+                    "min_grade": 0.8
+                }
+            }
+        ]
+        api.set_credit_requirements(self.course_key, requirements)
+
+        # Update the requirements, removing an existing requirement
+        api.set_credit_requirements(self.course_key, requirements[1:])
+
+        # Expect that now only the grade requirement is returned
+        visible_reqs = api.get_credit_requirements(self.course_key)
+        self.assertEqual(len(visible_reqs), 1)
+        self.assertEqual(visible_reqs[0]["namespace"], "grade")
 
     def test_disable_credit_requirements(self):
         self.add_credit_course()
@@ -160,19 +191,6 @@ class CreditRequirementApiTests(CreditApiTestBase):
         self.assertEqual(len(grade_req), 1)
         self.assertEqual(grade_req[0].active, False)
 
-    def test_requirements_to_disable(self):
-        self.add_credit_course()
-        requirements = [
-            {
-                "namespace": "grade",
-                "name": "grade",
-                "display_name": "Grade",
-                "criteria": {
-                    "min_grade": 0.8
-                }
-            }
-        ]
-
 
 @ddt.ddt
 class CreditProviderIntegrationApiTests(CreditApiTestBase):
@@ -202,9 +220,11 @@ class CreditProviderIntegrationApiTests(CreditApiTestBase):
         self.user.profile.country = self.USER_INFO['country']
         self.user.profile.save()
 
-    def test_credit_request(self):
+        # By default, configure the database so that there is a single
+        # credit requirement that the user has satisfied (minimum grade)
         self._configure_credit()
 
+    def test_credit_request(self):
         # Initiate a credit request
         request = api.create_credit_request(self.course_key, self.PROVIDER_ID, self.USER_INFO['username'])
 
@@ -235,8 +255,6 @@ class CreditProviderIntegrationApiTests(CreditApiTestBase):
 
     @ddt.data("approved", "rejected")
     def test_credit_request_status(self, status):
-        self._configure_credit()
-
         request = api.create_credit_request(self.course_key, self.PROVIDER_ID, self.USER_INFO['username'])
 
         # Initial status should be "pending"
@@ -247,27 +265,25 @@ class CreditProviderIntegrationApiTests(CreditApiTestBase):
         self._assert_credit_status(status)
 
     def test_query_counts(self):
-        self._configure_credit()
-
         # Yes, this is a lot of queries, but this API call is also doing a lot of work :)
         # - 1 query: Check the user's eligibility and retrieve the credit course and provider.
         # - 2 queries: Get-or-create the credit request.
         # - 1 query: Retrieve user account and profile information from the user API.
         # - 1 query: Look up the user's final grade from the credit requirements table.
         # - 2 queries: Update the request.
-        # - 1 query: Create the "pending" status object.
-        with self.assertNumQueries(8):
+        # - 2 queries: Update the history table for the request.
+        with self.assertNumQueries(9):
             request = api.create_credit_request(self.course_key, self.PROVIDER_ID, self.USER_INFO['username'])
 
-        with self.assertNumQueries(2):
+        # - 3 queries: Retrieve and update the request
+        # - 1 query: Update the history table for the request.
+        with self.assertNumQueries(4):
             api.update_credit_request_status(request['uuid'], "approved")
 
         with self.assertNumQueries(1):
             api.get_credit_requests_for_user(self.USER_INFO['username'])
 
     def test_reuse_credit_request(self):
-        self._configure_credit()
-
         # Create the first request
         first_request = api.create_credit_request(self.course_key, self.PROVIDER_ID, self.USER_INFO['username'])
 
@@ -284,8 +300,6 @@ class CreditProviderIntegrationApiTests(CreditApiTestBase):
 
     @ddt.data("approved", "rejected")
     def test_cannot_make_credit_request_after_response(self, status):
-        self._configure_credit()
-
         # Create the first request
         request = api.create_credit_request(self.course_key, self.PROVIDER_ID, self.USER_INFO['username'])
 
@@ -298,13 +312,17 @@ class CreditProviderIntegrationApiTests(CreditApiTestBase):
 
     @ddt.data("pending", "failed")
     def test_user_is_not_eligible(self, status):
-        self._configure_credit(requirement_status=status)
+        # Simulate a user who is not eligible for credit
+        CreditEligibility.objects.all().delete()
+        status = CreditRequirementStatus.objects.get(username=self.USER_INFO['username'])
+        status.status = status
+        status.reason = {}
+        status.save()
+
         with self.assertRaises(UserIsNotEligible):
             api.create_credit_request(self.course_key, self.PROVIDER_ID, self.USER_INFO['username'])
 
     def test_create_request_null_mailing_address(self):
-        self._configure_credit()
-
         # User did not specify a mailing address
         self.user.profile.mailing_address = None
         self.user.profile.save()
@@ -314,8 +332,6 @@ class CreditProviderIntegrationApiTests(CreditApiTestBase):
         self.assertEqual(request["user_mailing_address"], "")
 
     def test_create_request_null_country(self):
-        self._configure_credit()
-
         # Simulate users who registered accounts before the country field was introduced.
         # We need to manipulate the database directly because the country Django field
         # coerces None values to empty strings.
@@ -328,8 +344,6 @@ class CreditProviderIntegrationApiTests(CreditApiTestBase):
         self.assertEqual(request["user_country"], "")
 
     def test_user_has_no_final_grade(self):
-        self._configure_credit()
-
         # Simulate an error condition that should never happen:
         # a user is eligible for credit, but doesn't have a final
         # grade recorded in the eligibility requirement.
@@ -345,23 +359,28 @@ class CreditProviderIntegrationApiTests(CreditApiTestBase):
             api.create_credit_request(self.course_key, self.PROVIDER_ID, self.USER_INFO['username'])
 
     def test_update_invalid_credit_status(self):
-        self._configure_credit()
+        # The request status must be either "approved" or "rejected"
         request = api.create_credit_request(self.course_key, self.PROVIDER_ID, self.USER_INFO['username'])
         with self.assertRaises(InvalidCreditStatus):
             api.update_credit_request_status(request['uuid'], "invalid")
 
     def test_update_credit_request_not_found(self):
-        self._configure_credit()
+        # The request UUID must exist
         with self.assertRaises(CreditRequestNotFound):
             api.update_credit_request_status("invalid_uuid", "approved")
 
     def test_get_credit_requests_no_requests(self):
-        self._configure_credit()
         requests = api.get_credit_requests_for_user(self.USER_INFO['username'])
         self.assertEqual(requests, [])
 
-    def _configure_credit(self, requirement_status="satisfied"):
-        """Configure a credit course and its requirements. """
+    def _configure_credit(self):
+        """
+        Configure a credit course and its requirements.
+
+        By default, add a single requirement (minimum grade)
+        that the user has satisfied.
+
+        """
         credit_course = self.add_credit_course()
         requirement = CreditRequirement.objects.create(
             course=credit_course,
@@ -373,18 +392,15 @@ class CreditProviderIntegrationApiTests(CreditApiTestBase):
             username=self.USER_INFO['username'],
             requirement=requirement,
         )
-        status.status = requirement_status
-        if requirement_status == "satisfied":
-            status.reason = {"final_grade": self.FINAL_GRADE}
-
+        status.status = "satisfied"
+        status.reason = {"final_grade": self.FINAL_GRADE}
         status.save()
 
-        if requirement_status == "satisfied":
-            CreditEligibility.objects.create(
-                username=self.USER_INFO['username'],
-                course=CreditCourse.objects.get(course_key=self.course_key),
-                provider=CreditProvider.objects.get(provider_id=self.PROVIDER_ID)
-            )
+        CreditEligibility.objects.create(
+            username=self.USER_INFO['username'],
+            course=CreditCourse.objects.get(course_key=self.course_key),
+            provider=CreditProvider.objects.get(provider_id=self.PROVIDER_ID)
+        )
 
     def _assert_credit_status(self, expected_status):
         """Check the user's credit status. """

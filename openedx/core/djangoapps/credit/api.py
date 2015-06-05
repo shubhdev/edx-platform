@@ -1,8 +1,6 @@
 """ Contains the APIs for course credit requirements """
 import logging
 import uuid
-import datetime
-import pytz
 from django.db import transaction
 
 from student.models import User
@@ -20,7 +18,6 @@ from .models import (
     CreditRequirement,
     CreditRequirementStatus,
     CreditRequest,
-    CreditRequestStatus,
     CreditEligibility,
 )
 
@@ -136,14 +133,13 @@ def get_credit_requirements(course_key, namespace=None):
     ]
 
 
-# Wrap in a transaction to ensure that the request and initial pending status are consistent.
 @transaction.commit_on_success
 def create_credit_request(course_key, provider_id, username):
     """
     Initiate a request for credit from a credit provider.
 
     This will return the parameters that the user's browser will need to POST
-    to the credit provider.  It does NOT calculate the signature
+    to the credit provider.  It does NOT calculate the signature.
 
     Only users who are eligible for credit (have satisfied all credit requirements) are allowed to make requests.
 
@@ -192,11 +188,10 @@ def create_credit_request(course_key, provider_id, username):
             course__course_key=course_key,
             provider__provider_id=provider_id
         )
-    except CreditEligibility.DoesNotExist:
-        raise UserIsNotEligible
-    else:
         credit_course = user_eligibility.course
         credit_provider = user_eligibility.provider
+    except CreditEligibility.DoesNotExist:
+        raise UserIsNotEligible
 
     # Initiate a new request if one has not already been created
     credit_request, created = CreditRequest.objects.get_or_create(
@@ -208,7 +203,7 @@ def create_credit_request(course_key, provider_id, username):
     # Check whether we've already gotten a response for a request,
     # If so, we're not allowed to issue any further requests.
     # Skip checking the status if we know that we just created this record.
-    if not created and credit_request.current_status() != "pending":
+    if not created and credit_request.status != "pending":
         raise RequestAlreadyCompleted
 
     if created:
@@ -235,7 +230,7 @@ def create_credit_request(course_key, provider_id, username):
 
     parameters = {
         "uuid": credit_request.uuid,
-        "timestamp": datetime.datetime.now(pytz.UTC).isoformat(),
+        "timestamp": credit_request.timestamp.isoformat(),
         "course_org": course_key.org,
         "course_num": course_key.course,
         "course_run": course_key.run,
@@ -257,12 +252,6 @@ def create_credit_request(course_key, provider_id, username):
 
     credit_request.parameters = parameters
     credit_request.save()
-
-    # Save the initial status as pending
-    CreditRequestStatus.objects.create(
-        request=credit_request,
-        status="pending"
-    )
 
     return parameters
 
@@ -297,16 +286,10 @@ def update_credit_request_status(request_uuid, status):
 
     try:
         request = CreditRequest.objects.get(uuid=request_uuid)
+        request.status = status
+        request.save()
     except CreditRequest.DoesNotExist:
         raise CreditRequestNotFound
-
-    # For auditing purposes, we don't modify credit request status
-    # records once they're created.  Instead, we use the most recently
-    # created status record as the current status.
-    CreditRequestStatus.objects.create(
-        request=request,
-        status=status,
-    )
 
 
 def get_credit_requests_for_user(username):

@@ -8,7 +8,9 @@ successful completion of a course on EdX
 
 import logging
 
-from django.db import models, connection
+from django.db import models
+from simple_history.models import HistoricalRecords
+
 
 from jsonfield.fields import JSONField
 from model_utils.models import TimeStampedModel
@@ -30,9 +32,14 @@ class CreditProvider(TimeStampedModel):
 
     provider_id = models.CharField(max_length=255, db_index=True, unique=True)
     display_name = models.CharField(max_length=255)
-    provider_url = models.URLField(max_length=255, unique=True)
+    provider_url = models.URLField(max_length=255, unique=True, default="")
+
+    # Default is one year
+    DEFAULT_ELIGIBILITY_DURATION = 31556970
+
     eligibility_duration = models.PositiveIntegerField(
-        help_text=ugettext_lazy(u"Number of seconds to show eligibility message")
+        help_text=ugettext_lazy(u"Number of seconds to show eligibility message"),
+        default=DEFAULT_ELIGIBILITY_DURATION
     )
     active = models.BooleanField(default=True)
 
@@ -91,7 +98,7 @@ class CreditRequirement(TimeStampedModel):
     course = models.ForeignKey(CreditCourse, related_name="credit_requirements")
     namespace = models.CharField(max_length=255)
     name = models.CharField(max_length=255)
-    display_name = models.CharField(max_length=255)
+    display_name = models.CharField(max_length=255, default="")
     criteria = JSONField()
     active = models.BooleanField(default=True)
 
@@ -225,23 +232,25 @@ class CreditRequest(TimeStampedModel):
     username = models.CharField(max_length=255, db_index=True)
     course = models.ForeignKey(CreditCourse, related_name="credit_requests")
     provider = models.ForeignKey(CreditProvider, related_name="credit_requests")
+    timestamp = models.DateTimeField(auto_now_add=True)
     parameters = JSONField()
 
-    def current_status(self):  # pylint: disable=no-member
-        """
-        Retrieve the current status for a request.
+    REQUEST_STATUS_PENDING = "pending"
+    REQUEST_STATUS_APPROVED = "approved"
+    REQUEST_STATUS_REJECTED = "rejected"
 
-        This will return either:
-        * "pending": The user has initiated a request, but no response has been
-            received from the credit provider.
-        * "approved": The user's credit request has been approved by the provider.
-        * "rejected": The user's credit request has been rejected by the provider.
+    REQUEST_STATUS_CHOICES = (
+        (REQUEST_STATUS_PENDING, "Pending"),
+        (REQUEST_STATUS_APPROVED, "Approved"),
+        (REQUEST_STATUS_REJECTED, "Rejected"),
+    )
+    status = models.CharField(
+        max_length=255,
+        choices=REQUEST_STATUS_CHOICES,
+        default=REQUEST_STATUS_PENDING
+    )
 
-        """
-        try:
-            return self.statuses.latest().status  # pylint: disable=no-member
-        except CreditRequestStatus.DoesNotExist:
-            return "pending"
+    history = HistoricalRecords()
 
     @classmethod
     def credit_requests_for_user(cls, username):
@@ -269,77 +278,21 @@ class CreditRequest(TimeStampedModel):
         ]
 
         """
-        # To minimize the number of database queries, we execute
-        # the raw SQL query instead of using Django's ORM.
-        # This allows us to use a subquery to
-        # retrieve the most recent status for each credit request.
-        cursor = connection.cursor()
-        cursor.execute(
-            (
-                'SELECT cr.uuid, cr.created, cc.course_key, cp.provider_id, cp.display_name, '
-                'IFNULL(('
-                '    SELECT status FROM credit_creditrequeststatus AS crs '
-                '    WHERE crs.request_id=cr.id '
-                '    ORDER BY created DESC LIMIT 1'
-                '), "pending") '
-                'FROM credit_creditrequest as cr '
-                'LEFT JOIN credit_creditcourse as cc ON cr.course_id=cc.id '
-                'LEFT JOIN credit_creditprovider as cp ON cr.provider_id=cp.id '
-                'WHERE cr.username=%s '
-                'ORDER BY cc.course_key ASC, cp.provider_id ASC '
-            ), [username]
-        )
-
         return [
             {
-                "uuid": row[0],
-                "timestamp": row[1],
-                "course_key": row[2],
+                "uuid": request.uuid,
+                "timestamp": request.modified,
+                "course_key": request.course.course_key,
                 "provider": {
-                    "id": row[3],
-                    "display_name": row[4]
+                    "id": request.provider.provider_id,
+                    "display_name": request.provider.display_name
                 },
-                "status": row[5]
+                "status": request.status
             }
-            for row in cursor.fetchall()
+            for request in cls.objects.select_related('course', 'provider').filter(username=username)
         ]
 
     class Meta(object):  # pylint: disable=missing-docstring
         # Enforce the constraint that each user can have exactly one outstanding
         # request to a given provider.  Multiple requests use the same UUID.
         unique_together = ('username', 'course', 'provider')
-
-
-class CreditRequestStatus(TimeStampedModel):
-    """
-    The status of a request for credit.
-
-    For auditing purposes, each time a credit request is issued,
-    a CreditRequestStatus is created with status “pending” and a timestamp.
-
-    When a credit request is approved by the credit provider, a CreditRequestStatus
-    record will be created and associated with the initiating CreditRequest.
-    CreditRequestStatus records are immutable and timestamped.
-
-    The state transitions are:
-
-        [request]--> (pending) --[approved]--> (approved)
-                         |
-                     [rejected]
-                         |
-                         V
-                     (rejected)
-
-    """
-
-    REQUEST_STATUS_CHOICES = (
-        ("pending", "Pending"),
-        ("approved", "Approved"),
-        ("rejected", "Rejected"),
-    )
-
-    request = models.ForeignKey(CreditRequest, related_name="statuses")
-    status = models.CharField(max_length=255, choices=REQUEST_STATUS_CHOICES)
-
-    class Meta(object):  # pylint: disable=missing-docstring
-        get_latest_by = "created"
