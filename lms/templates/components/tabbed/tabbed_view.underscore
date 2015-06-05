@@ -1,4 +1,4 @@
 <div class="page-content">
-    <nav class="page-content-nav"></nav>
+    <nav class="page-content-nav" role="tablist"></nav>
     <div class="page-content-main"></div>
 </div>

@@ -1,1 +1,1 @@
-<a href="" data-index="<%= index %>" class="nav-item"><%- title %></a>
+<a class="nav-item" href="" data-index="<%= index %>" role="tab" aria-selected="false"><%- title %></a>

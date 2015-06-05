@@ -42,8 +42,8 @@
                    },
 
                    setActiveTab: function (index) {
-                       this.$('a.is-active').removeClass('is-active');
-                       this.tabs[index].tabEl.addClass('is-active');
+                       this.$('a.is-active').removeClass('is-active').attr('aria-selected', 'false');
+                       this.tabs[index].tabEl.addClass('is-active').attr('aria-selected', 'true');
                        var view = this.tabs[index].view;
                        view.render();
                        this.$('.page-content-main').html(view.$el.html());

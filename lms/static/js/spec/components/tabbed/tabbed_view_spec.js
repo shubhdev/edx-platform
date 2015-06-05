@@ -40,7 +40,7 @@
                    });
 
                    it('can render itself', function () {
-                       expect(view.$el.html()).toContain('<nav class="page-content-nav">')
+                       expect(view.$el.html()).toContain('<nav class="page-content-nav" role="tablist">')
                    });
 
                    it('shows its first tab by default', function () {
@@ -68,6 +68,14 @@
                        expect(view.$('.nav-item.is-active').data('index')).toEqual(0);
                        Backbone.history.navigate('test 2', {trigger: true});
                        expect(view.$('.nav-item.is-active').data('index')).toEqual(1);
+                   });
+
+                   it('marks the active tab as selected using aria attributes', function () {
+                       expect(view.$('.nav-item[data-index=0]')).toHaveAttr('aria-selected', 'true');
+                       expect(view.$('.nav-item[data-index=1]')).toHaveAttr('aria-selected', 'false');
+                       view.$('.nav-item[data-index=1]').click();
+                       expect(view.$('.nav-item[data-index=0]')).toHaveAttr('aria-selected', 'false');
+                       expect(view.$('.nav-item[data-index=1]')).toHaveAttr('aria-selected', 'true');
                    });
                });
            }
