@@ -213,7 +213,7 @@ class BookmarkModelTests(BookmarksTestsBase):
         (30, [[PathItem(EXAMPLE_USAGE_KEY_1, '1')], [PathItem(EXAMPLE_USAGE_KEY_2, '2')]], 2),
     )
     @ddt.unpack
-    @mock.patch('bookmarks.models.Bookmark.get_path')
+    @mock.patch('openedx.core.djangoapps.bookmarks.models.Bookmark.get_path')
     def test_path(self, seconds_delta, paths, get_path_call_count, mock_get_path):
 
         block_path = [PathItem(UsageKey.from_string(EXAMPLE_USAGE_KEY_1), '1')]
@@ -275,7 +275,7 @@ class BookmarkModelTests(BookmarksTestsBase):
         self.assertEqual(bookmark.xblock_cache.paths, [])
 
         # Parent block could not be retrieved
-        with mock.patch('bookmarks.models.search.path_to_location') as mock_path_to_location:
+        with mock.patch('openedx.core.djangoapps.bookmarks.models.search.path_to_location') as mock_path_to_location:
             mock_path_to_location.return_value = [usage_key]
             bookmark_data = self.get_bookmark_data(self.other_sequential_1, user=user)
             bookmark = Bookmark.create(bookmark_data)

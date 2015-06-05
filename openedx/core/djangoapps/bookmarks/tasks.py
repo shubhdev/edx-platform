@@ -9,8 +9,6 @@ from celery.task import task  # pylint: disable=import-error,no-name-in-module
 from opaque_keys.edx.keys import CourseKey
 from xmodule.modulestore.django import modulestore
 
-from .models import XBlockCache, PathItem
-
 log = logging.getLogger('edx.celery.task')
 
 
@@ -66,6 +64,7 @@ def _paths_from_data(paths_data):
     """
     Construct a list of paths from path data.
     """
+    from .models import PathItem
     paths = []
     for path_data in paths_data:
         paths.append(
@@ -78,6 +77,7 @@ def _update_xblocks_cache(course_key):
     """
     Calculate the XBlock cache data for a course and update the XBlockCache table.
     """
+    from .models import XBlockCache
     blocks_data = _calculate_course_xblocks_data(course_key)
 
     with transaction.commit_on_success():

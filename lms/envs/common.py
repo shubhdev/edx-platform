@@ -1857,7 +1857,7 @@ INSTALLED_APPS = (
     'openedx.core.djangoapps.credit',
 
     # Bookmarks
-    'bookmarks',
+    'openedx.core.djangoapps.bookmarks',
 )
 
 ######################### CSRF #########################################

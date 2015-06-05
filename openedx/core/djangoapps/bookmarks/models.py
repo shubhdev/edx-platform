@@ -16,6 +16,8 @@ from xmodule.modulestore.django import modulestore
 from xmodule.modulestore.exceptions import ItemNotFoundError, NoPathToItem
 from xmodule_django.models import CourseKeyField, LocationKeyField
 
+import signals
+
 log = logging.getLogger(__name__)
 
 

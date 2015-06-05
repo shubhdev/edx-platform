@@ -23,7 +23,7 @@ class BookmarkFactory(DjangoModelFactory):
     usage_key = LOCATION('usage_id')
     path = list()
     xblock_cache = factory.SubFactory(
-        'bookmarks.tests.factories.XBlockCacheFactory',
+        'openedx.core.djangoapps.bookmarks.tests.factories.XBlockCacheFactory',
         course_key=factory.SelfAttribute('..course_key'),
         usage_key=factory.SelfAttribute('..usage_key'),
     )
