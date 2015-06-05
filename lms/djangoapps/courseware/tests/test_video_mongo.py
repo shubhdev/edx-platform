@@ -13,7 +13,7 @@ from django.test.utils import override_settings
 
 from xmodule.video_module import VideoDescriptor, bumper_utils, video_utils
 from xmodule.x_module import STUDENT_VIEW
-from xmodule.tests.test_video import VideoDescriptorTestBase
+from xmodule.tests.test_video import VideoDescriptorTestBase, instantiate_descriptor
 from xmodule.tests.test_import import DummySystem
 
 from edxval.api import (
@@ -859,6 +859,82 @@ class TestVideoDescriptorInitialization(BaseTestXmodule):
 
         self.assertNotIn('source', fields)
         self.assertFalse(self.item_descriptor.download_video)
+
+
+class TestVideoDescriptorStudentViewJson(TestCase):
+    """
+    Tests for the student_view_json method on VideoDescriptor.
+
+    test with edx_video_id
+        test with course associated in VAL
+            video exists in VAL
+            video doesn't exist in VAL
+        test with no course associated in VAL
+            allow_cache_miss is True
+                video exists in VAL
+                video doesn't exist in VAL
+            allow_cache_miss is False
+    """
+    def setUp(self):
+        super(TestVideoDescriptorStudentViewJson, self).setUp()
+        self.source_url = "http://www.example.com/source.mp4"
+        self.lang = "ge"
+        sample_xml = (
+            "<video display_name='Test Video'> " +
+            "<source src='" + self.source_url + "'/> " +
+            "<transcript language='" + self.lang + "' src='german_translation.srt' /> " +
+            "</video>"
+        )
+        self.transcript_url = "transcript_url"
+        self.video = instantiate_descriptor(data=sample_xml)
+        self.video.runtime.handler_url = Mock(return_value=self.transcript_url)
+
+    def setup_val_video(self):
+        create_profile('mobile')
+        edx_video_id = 'test_edx_video_id'
+        create_video({
+            'edx_video_id': edx_video_id,
+            'client_video_id': 'test_client_video_id',
+            'duration': 111,
+            'status': 'dummy',
+            'encoded_videos': [{
+                'profile': 'mobile',
+                'url': 'http://example.com/video',
+                'file_size': 222,
+                'bitrate': 333,
+            }],
+        })
+        self.val_video = get_video_info(edx_video_id)
+
+    def get_result(self, allow_cache_miss="True"):
+        context = {
+            "profile": ["mobile"],
+            "allow_cache_miss": allow_cache_miss
+        }
+        return self.video.student_view_json(context)
+
+    def test_only_on_web(self):
+        self.video.only_on_web = True
+        result_json = self.get_result()
+        self.assertDictEqual(result_json, {"only_on_web": True})
+
+    def test_no_edx_video_id(self):
+        result_json = self.get_result()
+        self.assertDictEqual(
+            result_json,
+            {
+                "only_on_web": False,
+                "duration": None,
+                "transcripts": {self.lang: self.transcript_url},
+                "encoded_videos": {"fallback": {"url": self.source_url, "file_size": 0}},
+            }
+        )
+
+    def test_with_edx_video_id(self):
+        self.setup_val_video()
+        self.video.edx_video_id = self.val_video['edx_video_id']
+        self.get_result()
+        pass   # TODO
 
 
 @attr('shard_1')
