@@ -9,14 +9,14 @@
            function($, _, Backbone, TabbedView) {
                var view,
                    TestSubview = Backbone.View.extend({
-                   initialize: function (options) {
-                       this.text = options.text;
-                   },
+                       initialize: function (options) {
+                           this.text = options.text;
+                       },
 
-                   render: function () {
-                       this.$el.text(this.text);
-                   }
-               });
+                       render: function () {
+                           this.$el.text(this.text);
+                       }
+                   });
 
                beforeEach(function () {
                    view = new TabbedView({
