@@ -10,11 +10,47 @@ in the user's session.
 This middleware must be placed before the LocaleMiddleware, but after
 the SessionMiddleware.
 """
+import re
+
 from django.conf import settings
 
-from django.utils.translation.trans_real import parse_accept_lang_header
-
 from dark_lang.models import DarkLangConfig
+
+
+# TODO re-import this once we're on Django 1.5 or greater. Also remove
+# `accept_language_re` and the function `parse_accept_lang_header`.
+# from django.utils.translation.trans_real import parse_accept_lang_header
+
+# ***** Imported from Django 1.5+ ***** #
+# Format of Accept-Language header values. From RFC 2616, section 14.4 and 3.9.
+accept_language_re = re.compile(r'''
+    ([A-Za-z]{1,8}(?:-[A-Za-z0-9]{1,8})*|\*)         # "en", "en-au", "x-y-z", "*"
+    (?:\s*;\s*q=(0(?:\.\d{,3})?|1(?:.0{,3})?))?   # Optional "q=1.00", "q=0.8"
+    (?:\s*,\s*|$)                                 # Multiple accepts per header.
+    ''', re.VERBOSE)
+
+def parse_accept_lang_header(lang_string):
+    """
+    Parses the lang_string, which is the body of an HTTP Accept-Language
+    header, and returns a list of (lang, q-value), ordered by 'q' values.
+
+    Any format errors in lang_string results in an empty list being returned.
+    """
+    # TODO parse_accept_lang_header is broken until we are on Django 1.5 or greater
+    # so this hack can be removed once we upgrade. See https://code.djangoproject.com/ticket/19381
+    result = []
+    pieces = accept_language_re.split(lang_string)
+    if pieces[-1]:
+        return []
+    for i in range(0, len(pieces) - 1, 3):
+        first, lang, priority = pieces[i : i + 3]
+        if first:
+            return []
+        priority = priority and float(priority) or 1.0
+        result.append((lang, priority))
+    result.sort(key=lambda k: k[1], reverse=True)
+    return result
+# ***** End Django future import ***** #
 
 
 def dark_parse_accept_lang_header(accept):
