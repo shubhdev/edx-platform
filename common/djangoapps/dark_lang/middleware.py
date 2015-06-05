@@ -29,14 +29,14 @@ def dark_parse_accept_lang_header(accept):
     day edX uses django 1.7 or higher, this function can be modified to support the old
     language codes until there are no browsers use them.
     '''
-    print 'accept is:', accept
+    print 'accept is:', accept, type(accept)
     browser_langs = parse_accept_lang_header(accept)
-    print 'browser langs are: {}'.format(browser_langs)
+    print 'browser langs are: {}'.format(browser_langs), type(browser_langs)
     django_langs = []
     for lang, priority in browser_langs:
         lang = CHINESE_LANGUAGE_CODE_MAP.get(lang.lower(), lang)
         django_langs.append((lang, priority))
-
+    print 'django langs are: {}'.format(django_langs), type(django_langs)
     return django_langs
 
 # If django 1.7 or higher is used, the right-side can be updated with new-style codes.
@@ -52,6 +52,8 @@ CHINESE_LANGUAGE_CODE_MAP = {
     # The following are the old-style language codes that django does not recognize
     'zh-mo': 'zh-TW',       # Chinese (Traditional, Macau)
     'zh-sg': 'zh-CN',       # Chinese (Simplified, Singapore)
+    'ar-sa': 'ar',
+    'es-ar': 'es-419',
 }
 
 
@@ -81,8 +83,12 @@ class DarkLangMiddleware(object):
             print "Dark lang config not enabled"
             return
 
+        print 'in process request'
+        print '"{}"'.format(request.META['HTTP_ACCEPT_LANGUAGE']), type(request.META['HTTP_ACCEPT_LANGUAGE'])
         self._clean_accept_headers(request)
         self._activate_preview_language(request)
+        print 'leaving process request'
+        print '"{}"'.format(request.META['HTTP_ACCEPT_LANGUAGE']), type(request.META['HTTP_ACCEPT_LANGUAGE'])
 
     def _is_released(self, lang_code):
         """
@@ -90,6 +96,22 @@ class DarkLangMiddleware(object):
         """
         print "_is_released: Checking if {} starts with any of: {}".format(lang_code.lower(), self.released_langs)
         return any(lang_code.lower().startswith(released_lang.lower()) for released_lang in self.released_langs)
+#        print "_is_released: Checking if {} == any of {}".format(lang_code.lower(), self.released_langs)
+#        return any(lang_code.lower() == released_lang.lower() for released_lang in self.released_langs)
+
+            
+
+    def _fuzzy_match(self, lang_code):
+        """Returns a fuzzy match for lang_code"""
+        if lang_code in self.released_langs:
+            print 'Exact match; found {} in released langs'.format(lang_code)
+            return lang_code
+
+        for released_lang in self.released_langs:
+            if lang_code.startswith(released_lang.lower()) or released_lang.lower().startswith(lang_code):
+                print "Fuzzy match: Asked for {}, returning {}".format(lang_code, released_lang)
+                return released_lang
+        return False
 
     def _format_accept_value(self, lang, priority=1.0):
         """
@@ -102,6 +124,7 @@ class DarkLangMiddleware(object):
         Remove any language that is not either in ``self.released_langs`` or
         a territory of one of those languages.
         """
+        print 'Released langs: {}'.format(self.released_langs)
         accept = request.META.get('HTTP_ACCEPT_LANGUAGE', None)
         if accept is None or accept == '*':
             return
@@ -114,9 +137,20 @@ class DarkLangMiddleware(object):
             if self._is_released(lang)
         )
 
-        print 'setting meta accept to:', new_accept
+        # new_accept = []
+        # for lang, priority in dark_parse_accept_lang_header(accept):
+        #     if self._is_released(lang):
+        #         new_accept.append(self._format_accept_value(lang, priority))
+        #     else:
+        #         fuzzy_code = self._fuzzy_match(lang.lower())
+        #         if fuzzy_code:
+        #             new_accept.append(self._format_accept_value(fuzzy_code, priority))
+
+        # new_accept = ", ".join(new_accept)
+
+        print 'setting meta accept to: "{}"'.format(new_accept), type(new_accept)
         request.META['HTTP_ACCEPT_LANGUAGE'] = new_accept
-        print request.META['HTTP_ACCEPT_LANGUAGE']
+        print '"{}"'.format(request.META['HTTP_ACCEPT_LANGUAGE']), type(request.META['HTTP_ACCEPT_LANGUAGE'])
 
     def _activate_preview_language(self, request):
         """
