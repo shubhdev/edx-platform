@@ -495,19 +495,21 @@ class EnrollmentTest(EnrollmentTestMixin, ModuleStoreTestCase, APITestCase):
         )
 
         # Passes the include_expired parameter to the API call
-        v_response = self.client.get(reverse('courseenrollmentdetails', kwargs={"course_id": unicode(self.course.id)}), { 'include_expired': '1'})
+        v_response = self.client.get(
+            reverse('courseenrollmentdetails', kwargs={"course_id": unicode(self.course.id)}), {'include_expired': '1'}
+        )
         v_data = json.loads(v_response.content)
 
         # Ensure that both course modes are returned
-        self.assertEqual(len(v_data['course_modes']), 2);
+        self.assertEqual(len(v_data['course_modes']), 2)
 
         # Omits the include_expired parameter from the API call
         h_response = self.client.get(reverse('courseenrollmentdetails', kwargs={"course_id": unicode(self.course.id)}))
         h_data = json.loads(h_response.content)
 
         # Ensure that only one course mode is returned and that it is honor
-        self.assertEqual(len(h_data['course_modes']), 1);
-        self.assertEqual(h_data['course_modes'][0]['slug'], CourseMode.HONOR);
+        self.assertEqual(len(h_data['course_modes']), 1)
+        self.assertEqual(h_data['course_modes'][0]['slug'], CourseMode.HONOR)
 
     def test_update_enrollment_with_mode(self):
         """With the right API key, update an existing enrollment with a new mode. """
