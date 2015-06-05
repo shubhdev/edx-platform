@@ -496,7 +496,7 @@ class EnrollmentTest(EnrollmentTestMixin, ModuleStoreTestCase, APITestCase):
 
         # Passes the include_expired parameter to the API call
         v_response = self.client.get(
-            reverse('courseenrollmentdetails', kwargs={"course_id": unicode(self.course.id)}), {'include_expired': '1'}
+            reverse('courseenrollmentdetails', kwargs={"course_id": unicode(self.course.id)}), {'include_expired': True}
         )
         v_data = json.loads(v_response.content)
 
