@@ -1679,6 +1679,14 @@ class DeleteThreadTest(CommentsServiceMockMixin, UrlResetMixin, ModuleStoreTestC
     )
     @ddt.unpack
     def test_group_access(self, role_name, course_is_cohorted, thread_group_state):
+        """
+        Tests group access for deleting a thread
+
+        All privileged roles are able to delete a thread. A student role can
+        only delete a thread if,
+        the student role is the author and the thread is not in a cohort,
+        the student role is the author and the thread is in the author's cohort.
+        """
         cohort_course = CourseFactory.create(cohort_config={"cohorted": course_is_cohorted})
         CourseEnrollmentFactory.create(user=self.user, course_id=cohort_course.id)
         cohort = CohortFactory.create(course_id=cohort_course.id, users=[self.user])
@@ -1702,5 +1710,3 @@ class DeleteThreadTest(CommentsServiceMockMixin, UrlResetMixin, ModuleStoreTestC
             self.assertFalse(expected_error)
         except Http404:
             self.assertTrue(expected_error)
-
-

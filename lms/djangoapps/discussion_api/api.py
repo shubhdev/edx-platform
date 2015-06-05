@@ -76,16 +76,15 @@ def _get_thread_and_context(request, thread_id, parent_id=None, retrieve_kwargs=
 
 def _is_user_author_or_privileged(cc_thread, context):
     """
-    Check if the user is the author of a thread or a privileged user. Such users
-    may update or delete said thread.
+    Check if the user is the author of a thread or a privileged user.
 
     Returns:
-        True if user is author or privileged else False
+        Boolean
     """
-    is_author = context["cc_requester"]["id"] == cc_thread["user_id"]
-    if not (context["is_requester_privileged"] or is_author):
-        return False
-    return True
+    return (
+        context["is_requester_privileged"] or
+        context["cc_requester"]["id"] == cc_thread["user_id"]
+    )
 
 
 def get_thread_list_url(request, course_key, topic_id_list):

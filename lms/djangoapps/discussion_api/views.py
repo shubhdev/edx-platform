@@ -122,10 +122,6 @@ class ThreadViewSet(_ViewMixin, DeveloperErrorViewMixin, ViewSet):
         topic_id, type, title, and raw_body are accepted with the same meaning
         as in a POST request
 
-    **DELETE Parameters**:
-
-        no extra parameters for DELETE request
-
     **GET Response Values**:
 
         * results: The list of threads; each item in the list has the same

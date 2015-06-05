@@ -395,7 +395,7 @@ class ThreadViewSetPartialUpdateTest(DiscussionAPIViewTestMixin, ModuleStoreTest
 
 @httpretty.activate
 class ThreadViewSetDeleteTest(DiscussionAPIViewTestMixin, ModuleStoreTestCase):
-    """Tests for ThreadViewSet create"""
+    """Tests for ThreadViewSet delete"""
     def setUp(self):
         super(ThreadViewSetDeleteTest, self).setUp()
         self.url = reverse("thread-detail", kwargs={"thread_id": "test_thread"})
@@ -413,7 +413,7 @@ class ThreadViewSetDeleteTest(DiscussionAPIViewTestMixin, ModuleStoreTestCase):
         self.register_delete_thread_response(self.thread_id)
         response = self.client.delete(self.url)
         self.assertEqual(response.status_code, 204)
-        self.assertIsNone(response.data)
+        self.assertEqual(response.content, "")
 
     def test_delete_nonexistent_thread(self):
         self.register_get_thread_error_response(self.thread_id, 404)
