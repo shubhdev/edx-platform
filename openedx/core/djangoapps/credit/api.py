@@ -2,6 +2,9 @@
 Contains the APIs for course credit requirements.
 """
 
+from opaque_keys import InvalidKeyError
+from opaque_keys.edx.keys import CourseKey
+
 from .exceptions import InvalidCreditRequirements
 from .models import CreditCourse, CreditRequirement
 from openedx.core.djangoapps.credit.exceptions import InvalidCreditCourse
@@ -103,7 +106,7 @@ def get_credit_requirements(course_key, namespace=None):
     """
 
     requirements = CreditRequirement.get_course_requirements(course_key, namespace)
-    # pair requirements with same 'namespace' value together
+    # pair together requirements with same 'namespace' values
     paired_requirements = {}
     for requirement in requirements:
         requirement_data = {
@@ -172,3 +175,21 @@ def _validate_requirements(requirements):
                 )
             )
     return invalid_requirements
+
+
+def is_credit_course(course_key):
+    """API method to check if course is credit or not.
+
+    Args:
+        course_key(CourseKey): The course identifier
+
+    Returns:
+        Bool True if the course is marked credit else False
+
+    """
+    try:
+        course_key = CourseKey.from_string(unicode(course_key))
+    except InvalidKeyError:
+        return False
+
+    return CreditCourse.is_credit_course(course_key=course_key)

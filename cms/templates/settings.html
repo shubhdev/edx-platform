@@ -136,10 +136,10 @@ CMS.URL.UPLOAD_ASSET = '${upload_asset_url}';
                     </li>
                   % endif
 
-                  % if 'proctoring' in credit_requirements:
+                  % if 'proctored_exam' in credit_requirements:
                     <li class="field text is-not-editable" id="credit-proctoring-requirements">
                       <label for="proctoring-requirements">${_("Successful Proctored Exam")}</label>
-                        % for requirement in credit_requirements['proctoring']:
+                        % for requirement in credit_requirements['proctored_exam']:
                           <input title="${_('This field is disabled: this information cannot be changed.')}" type="text"
                               class="long" id="${requirement['name']}" value="${requirement['display_name']}" readonly />
                         % endfor

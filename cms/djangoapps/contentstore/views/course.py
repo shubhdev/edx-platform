@@ -23,9 +23,8 @@ from xmodule.error_module import ErrorDescriptor
 from xmodule.modulestore.django import modulestore
 from xmodule.contentstore.content import StaticContent
 from xmodule.tabs import CourseTab
-from openedx.core.djangoapps.credit.models import CreditCourse
+from openedx.core.djangoapps.credit.api import is_credit_course, get_credit_requirements
 from openedx.core.djangoapps.course_views.course_views import CourseViewTypeManager
-from openedx.core.djangoapps.credit.api import get_credit_requirements
 from xmodule.modulestore import EdxJSONEncoder
 from xmodule.modulestore.exceptions import ItemNotFoundError, DuplicateCourseError
 from opaque_keys import InvalidKeyError
@@ -880,7 +879,7 @@ def settings_handler(request, course_key_string):
                 settings_context.update({'possible_pre_requisite_courses': courses})
 
             if credit_eligibility_enabled:
-                if CreditCourse.is_credit_course(course_key):
+                if is_credit_course(course_key):
                     # get and all credit eligibility requirements
                     credit_requirements = get_credit_requirements(course_key)
                     # if 'minimum_grade_credit' of a course is not set or 0 then
