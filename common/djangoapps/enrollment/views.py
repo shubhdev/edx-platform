@@ -1,6 +1,3 @@
-#!/usr/bin/python
-# -*- coding: utf-8 -*-
-
 """
 The Enrollment API Views should be simple, lean HTTP endpoints for API access. This should
 consist primarily of authentication, request validation, and serialization.

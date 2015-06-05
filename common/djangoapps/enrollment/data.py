@@ -1,6 +1,3 @@
-#!/usr/bin/python
-# -*- coding: utf-8 -*-
-
 """
 Data Aggregation Layer of the Enrollment API. Collects all enrollment specific data into a single
 source to be used throughout the API.
