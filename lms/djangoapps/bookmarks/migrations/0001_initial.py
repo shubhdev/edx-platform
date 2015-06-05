@@ -16,15 +16,36 @@ class Migration(SchemaMigration):
             ('user', self.gf('django.db.models.fields.related.ForeignKey')(to=orm['auth.User'])),
             ('course_key', self.gf('xmodule_django.models.CourseKeyField')(max_length=255, db_index=True)),
             ('usage_key', self.gf('xmodule_django.models.LocationKeyField')(max_length=255, db_index=True)),
-            ('display_name', self.gf('django.db.models.fields.CharField')(default='', max_length=255)),
-            ('path', self.gf('jsonfield.fields.JSONField')()),
+            ('_path', self.gf('jsonfield.fields.JSONField')(db_column='path')),
+            ('xblock_cache', self.gf('django.db.models.fields.related.ForeignKey')(to=orm['bookmarks.XBlockCache'])),
         ))
         db.send_create_signal('bookmarks', ['Bookmark'])
 
+        # Adding unique constraint on 'Bookmark', fields ['user', 'usage_key']
+        db.create_unique('bookmarks_bookmark', ['user_id', 'usage_key'])
+
+        # Adding model 'XBlockCache'
+        db.create_table('bookmarks_xblockcache', (
+            ('id', self.gf('django.db.models.fields.AutoField')(primary_key=True)),
+            ('created', self.gf('model_utils.fields.AutoCreatedField')(default=datetime.datetime.now)),
+            ('modified', self.gf('model_utils.fields.AutoLastModifiedField')(default=datetime.datetime.now)),
+            ('course_key', self.gf('xmodule_django.models.CourseKeyField')(max_length=255, db_index=True)),
+            ('usage_key', self.gf('xmodule_django.models.LocationKeyField')(unique=True, max_length=255, db_index=True)),
+            ('display_name', self.gf('django.db.models.fields.CharField')(default='', max_length=255)),
+            ('_paths', self.gf('jsonfield.fields.JSONField')(default=[], db_column='paths')),
+        ))
+        db.send_create_signal('bookmarks', ['XBlockCache'])
+
 
     def backwards(self, orm):
+        # Removing unique constraint on 'Bookmark', fields ['user', 'usage_key']
+        db.delete_unique('bookmarks_bookmark', ['user_id', 'usage_key'])
+
         # Deleting model 'Bookmark'
         db.delete_table('bookmarks_bookmark')
+
+        # Deleting model 'XBlockCache'
+        db.delete_table('bookmarks_xblockcache')
 
 
     models = {
@@ -58,15 +79,25 @@ class Migration(SchemaMigration):
             'username': ('django.db.models.fields.CharField', [], {'unique': 'True', 'max_length': '30'})
         },
         'bookmarks.bookmark': {
-            'Meta': {'object_name': 'Bookmark'},
+            'Meta': {'unique_together': "(('user', 'usage_key'),)", 'object_name': 'Bookmark'},
+            '_path': ('jsonfield.fields.JSONField', [], {'db_column': "'path'"}),
+            'course_key': ('xmodule_django.models.CourseKeyField', [], {'max_length': '255', 'db_index': 'True'}),
+            'created': ('model_utils.fields.AutoCreatedField', [], {'default': 'datetime.datetime.now'}),
+            'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
+            'modified': ('model_utils.fields.AutoLastModifiedField', [], {'default': 'datetime.datetime.now'}),
+            'usage_key': ('xmodule_django.models.LocationKeyField', [], {'max_length': '255', 'db_index': 'True'}),
+            'user': ('django.db.models.fields.related.ForeignKey', [], {'to': "orm['auth.User']"}),
+            'xblock_cache': ('django.db.models.fields.related.ForeignKey', [], {'to': "orm['bookmarks.XBlockCache']"})
+        },
+        'bookmarks.xblockcache': {
+            'Meta': {'object_name': 'XBlockCache'},
+            '_paths': ('jsonfield.fields.JSONField', [], {'default': '[]', 'db_column': "'paths'"}),
             'course_key': ('xmodule_django.models.CourseKeyField', [], {'max_length': '255', 'db_index': 'True'}),
             'created': ('model_utils.fields.AutoCreatedField', [], {'default': 'datetime.datetime.now'}),
             'display_name': ('django.db.models.fields.CharField', [], {'default': "''", 'max_length': '255'}),
             'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
             'modified': ('model_utils.fields.AutoLastModifiedField', [], {'default': 'datetime.datetime.now'}),
-            'path': ('jsonfield.fields.JSONField', [], {}),
-            'usage_key': ('xmodule_django.models.LocationKeyField', [], {'max_length': '255', 'db_index': 'True'}),
-            'user': ('django.db.models.fields.related.ForeignKey', [], {'to': "orm['auth.User']"})
+            'usage_key': ('xmodule_django.models.LocationKeyField', [], {'unique': 'True', 'max_length': '255', 'db_index': 'True'})
         },
         'contenttypes.contenttype': {
             'Meta': {'ordering': "('name',)", 'unique_together': "(('app_label', 'model'),)", 'object_name': 'ContentType', 'db_table': "'django_content_type'"},
