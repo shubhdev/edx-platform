@@ -18,8 +18,11 @@
                        }
                    });
 
-               beforeEach(function () {
-                   view = new TabbedView({
+               describe('TabbedView component', function () {
+                   beforeEach(function () {
+                       spyOn(Backbone.history, 'navigate').andCallThrough();
+                       Backbone.history.start();
+                       view = new TabbedView({
                            tabs: [{
                                url: 'test 1',
                                title: 'Test 1',
@@ -30,9 +33,12 @@
                                view: new TestSubview({text: 'other text'})
                            }]
                        });
-               });
+                   });
 
-               describe('TabbedView component', function () {
+                   afterEach(function () {
+                       Backbone.history.stop();
+                   });
+
                    it('can render itself', function () {
                        expect(view.$el.html()).toContain('<nav class="page-content-nav">')
                    });
@@ -51,6 +57,17 @@
                        view.$('.nav-item[data-index=1]').click();
                        expect(view.$el.text()).not.toContain('this is test text');
                        expect(view.$el.text()).toContain('other text');
+                   });
+
+                   it('updates its navigation history when changing tabs', function () {
+                       view.$('.nav-item[data-index=1]').click();
+                       expect(Backbone.history.navigate.calls[0].args).toContain('test 1');
+                   });
+
+                   it('changes tabs on navigation', function () {
+                       expect(view.$('.nav-item.is-active').data('index')).toEqual(0);
+                       Backbone.history.navigate('test 2', {trigger: true});
+                       expect(view.$('.nav-item.is-active').data('index')).toEqual(1);
                    });
                });
            }
