@@ -88,8 +88,6 @@ CHINESE_LANGUAGE_CODE_MAP = {
     # The following are the old-style language codes that django does not recognize
     'zh-mo': 'zh-TW',       # Chinese (Traditional, Macau)
     'zh-sg': 'zh-CN',       # Chinese (Simplified, Singapore)
-    'ar-sa': 'ar',
-    'es-ar': 'es-419',
 }
 
 
@@ -126,25 +124,17 @@ class DarkLangMiddleware(object):
         print 'leaving process request'
         print '"{}"'.format(request.META['HTTP_ACCEPT_LANGUAGE']), type(request.META['HTTP_ACCEPT_LANGUAGE'])
 
-    def _is_released(self, lang_code):
-        """
-        ``True`` iff one of the values in ``self.released_langs`` is a prefix of ``lang_code``.
-        """
-        print "_is_released: Checking if {} starts with any of: {}".format(lang_code.lower(), self.released_langs)
-        return any(lang_code.lower().startswith(released_lang.lower()) for released_lang in self.released_langs)
-#        print "_is_released: Checking if {} == any of {}".format(lang_code.lower(), self.released_langs)
-#        return any(lang_code.lower() == released_lang.lower() for released_lang in self.released_langs)
-
-            
-
     def _fuzzy_match(self, lang_code):
         """Returns a fuzzy match for lang_code"""
+        print "_fuzzy_match: Checking if {} == any of {}".format(lang_code.lower(), self.released_langs)
         if lang_code in self.released_langs:
             print 'Exact match; found {} in released langs'.format(lang_code)
             return lang_code
 
+        lang_prefix = lang_code.split('-')[0]
         for released_lang in self.released_langs:
-            if lang_code.startswith(released_lang.lower()) or released_lang.lower().startswith(lang_code):
+            released_prefix = released_lang.split('-')[0]
+            if lang_prefix == released_prefix:
                 print "Fuzzy match: Asked for {}, returning {}".format(lang_code, released_lang)
                 return released_lang
         return False
@@ -166,23 +156,14 @@ class DarkLangMiddleware(object):
             return
 
         print "Getting new acceptance headers"
-        new_accept = ", ".join(
-            self._format_accept_value(lang, priority)
-            for lang, priority
-            in dark_parse_accept_lang_header(accept)
-            if self._is_released(lang)
-        )
 
-        # new_accept = []
-        # for lang, priority in dark_parse_accept_lang_header(accept):
-        #     if self._is_released(lang):
-        #         new_accept.append(self._format_accept_value(lang, priority))
-        #     else:
-        #         fuzzy_code = self._fuzzy_match(lang.lower())
-        #         if fuzzy_code:
-        #             new_accept.append(self._format_accept_value(fuzzy_code, priority))
+        new_accept = []
+        for lang, priority in dark_parse_accept_lang_header(accept):
+            fuzzy_code = self._fuzzy_match(lang.lower())
+            if fuzzy_code:
+                new_accept.append(self._format_accept_value(fuzzy_code, priority))
 
-        # new_accept = ", ".join(new_accept)
+        new_accept = ", ".join(new_accept)
 
         print 'setting meta accept to: "{}"'.format(new_accept), type(new_accept)
         request.META['HTTP_ACCEPT_LANGUAGE'] = new_accept
