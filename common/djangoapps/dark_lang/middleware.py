@@ -121,11 +121,9 @@ class DarkLangMiddleware(object):
             return
 
         print 'in process request'
-        print '"{}"'.format(request.META['HTTP_ACCEPT_LANGUAGE']), type(request.META['HTTP_ACCEPT_LANGUAGE'])
         self._clean_accept_headers(request)
         self._activate_preview_language(request)
         print 'leaving process request'
-        print '"{}"'.format(request.META['HTTP_ACCEPT_LANGUAGE']), type(request.META['HTTP_ACCEPT_LANGUAGE'])
 
     def _fuzzy_match(self, lang_code):
         """Returns a fuzzy match for lang_code"""
