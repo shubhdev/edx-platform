@@ -23,11 +23,13 @@ from dark_lang.models import DarkLangConfig
 
 # ***** Imported from Django 1.5+ ***** #
 # Format of Accept-Language header values. From RFC 2616, section 14.4 and 3.9.
+# pylint: disable=invalid-name
 accept_language_re = re.compile(r'''
-    ([A-Za-z]{1,8}(?:-[A-Za-z0-9]{1,8})*|\*)         # "en", "en-au", "x-y-z", "*"
+    ([A-Za-z]{1,8}(?:-[A-Za-z0-9]{1,8})*|\*)      # "en", "en-au", "x-y-z", "*"
     (?:\s*;\s*q=(0(?:\.\d{,3})?|1(?:.0{,3})?))?   # Optional "q=1.00", "q=0.8"
     (?:\s*,\s*|$)                                 # Multiple accepts per header.
     ''', re.VERBOSE)
+
 
 def parse_accept_lang_header(lang_string):
     """
@@ -43,13 +45,14 @@ def parse_accept_lang_header(lang_string):
     if pieces[-1]:
         return []
     for i in range(0, len(pieces) - 1, 3):
-        first, lang, priority = pieces[i : i + 3]
+        first, lang, priority = pieces[i: i + 3]
         if first:
             return []
         priority = priority and float(priority) or 1.0
         result.append((lang, priority))
     result.sort(key=lambda k: k[1], reverse=True)
     return result
+# pylint: enable=invalid-name
 # ***** End Django future import ***** #
 
 
