@@ -1,5 +1,6 @@
 # TODO: This file is imported from the stable Django 1.8 branch. Remove this file
 # and re-import this middleware from Django once the codebase is upgraded.
+# pylint: disable=invalid-name, missing-docstring
 "This is the locale selecting middleware that will look at accept headers"
 
 from django.conf import settings
@@ -10,7 +11,7 @@ from django.http import HttpResponseRedirect
 from django.utils import translation
 from django.utils.cache import patch_vary_headers
 # Override the Django 1.4 implementation with the 1.8 implementation
-from trans_real import get_language_from_request
+from django_locale.trans_real import get_language_from_request
 
 
 class LocaleMiddleware(object):
@@ -33,7 +34,8 @@ class LocaleMiddleware(object):
     def process_request(self, request):
         print 'welcome to django_locale.middleware'
         check_path = self.is_language_prefix_patterns_used()
-        # This call is broken in Django 1.4: https://github.com/django/django/blob/stable/1.4.x/django/utils/translation/trans_real.py#L399
+        # This call is broken in Django 1.4:
+        # https://github.com/django/django/blob/stable/1.4.x/django/utils/translation/trans_real.py#L399
         # (we override parse_accept_lang_header to a fixed version in dark_lang.middleware)
         language = get_language_from_request(
             request, check_path=check_path)

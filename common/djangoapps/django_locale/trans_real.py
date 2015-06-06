@@ -1,5 +1,6 @@
 """Translation helper functions."""
 # Imported from Django 1.8
+# pylint: disable=invalid-name
 import re
 from django.conf import settings
 from django.conf.locale import LANG_INFO
@@ -35,7 +36,7 @@ def parse_accept_lang_header(lang_string):
     if pieces[-1]:
         return []
     for i in range(0, len(pieces) - 1, 3):
-        first, lang, priority = pieces[i : i + 3]
+        first, lang, priority = pieces[i: i + 3]
         if first:
             return []
         priority = priority and float(priority) or 1.0
@@ -59,7 +60,8 @@ def get_supported_language_variant(lang_code, strict=False):
         possible_lang_codes = [lang_code]
         try:
             # TODO skip this, or import updated LANG_INFO format from __future__
-            # (fallback option wasn't added until https://github.com/django/django/commit/5dcdbe95c749d36072f527e120a8cb463199ae0d)
+            # (fallback option wasn't added until
+            # https://github.com/django/django/commit/5dcdbe95c749d36072f527e120a8cb463199ae0d)
             possible_lang_codes.extend(LANG_INFO[lang_code]['fallback'])
         except KeyError:
             pass
@@ -77,7 +79,7 @@ def get_supported_language_variant(lang_code, strict=False):
             # if fr-fr is not supported, try fr-ca.
             for supported_code in supported_lang_codes:
                 if supported_code.startswith(generic_lang_code + '-'):
-                    print 'returning supported code:', code
+                    print 'returning supported code:', supported_code
                     return supported_code
     raise LookupError(lang_code)
 
